@@ -10,7 +10,7 @@
     │
     ├── 📄 __init__.py           # Загрузчик промптов
     ├── 📄 oliver.txt             # Oliver Vance (Twitter)
-    ├── 📄 isaac.txt              # Isaac (Python)
+    ├── 📄 logan.txt              # Логан (Python/архитектура)
     ├── 📄 arseniy.txt            # Арсений (Яндекс)
     ├── 📄 victor.txt             # Victor (Google)
     ├── 📄 mark.txt               # Марк (ментор)
@@ -35,7 +35,7 @@ flask load-profiles --bot will # загрузить только Уилла
 | Файл | Бот | Аватар | Специализация |
 |------|-----|--------|---------------|
 | `oliver.txt` | Oliver Vance | 𝕏 | Twitter Ads, арбитраж, антидетект |
-| `isaac.txt` | Isaac | 🐍 | Python, чистый код, архитектура |
+| `logan.txt` | Логан | 👨‍🚀 | Python, архитектура кода, наставничество |
 | `arseniy.txt` | Арсений | Я | Яндекс.Директ, семантика |
 | `victor.txt` | Victor | G | Google Ads, PMax, GA4 |
 | `mark.txt` | Марк | ❤️ | Психология, ИИ, жизнь |
@@ -66,3 +66,4 @@ Oliver Vance — при изменении промптов перезагруз
 
 ## 📝 ИСТОРИЯ ИЗМЕНЕНИЙ
 2026-02-15 - Oliver Vance - Создание документации
+2026-02-15 - Sommelier - Замена Isaac на Логана (архитектор кода)
