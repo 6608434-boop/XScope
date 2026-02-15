@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/base.py
+НАЗНАЧЕНИЕ: Базовые настройки Flask приложения
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл содержит базовые настройки Flask, которые не зависят от окружения.
+    Сюда входят: режим отладки, пути к шаблонам, статике, базовые параметры.
+
+ИСПОЛЬЗОВАНИЕ:
+    from config.base import BaseConfig
+    app.config.from_object(BaseConfig)
+
+ПАРАМЕТРЫ:
+    DEBUG - режим отладки (True/False)
+    TESTING - режим тестирования
+    BASE_DIR - корневая папка проекта
+    TEMPLATES_DIR - путь к шаблонам
+    STATIC_DIR - путь к статическим файлам
+    JSON_AS_ASCII - для поддержки русского языка в JSON
+    JSON_SORT_KEYS - сохранять порядок ключей
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os  # для работы с путями и переменными окружения
+
+
+class BaseConfig:
+    """
+    Базовые настройки Flask.
+
+    Этот класс содержит все общие настройки, которые не меняются
+    в зависимости от окружения (development/production).
+    """
+
+    # ===== Режимы работы =====
+    # DEBUG включает детальные ошибки в браузере и автоперезагрузку
+    # Берется из .env, по умолчанию False (безопасно)
+    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+    # TESTING отключает CSRF и другие защиты для тестов
+    TESTING = os.environ.get('TESTING', 'False').lower() == 'true'
+
+    # ===== Пути к файлам =====
+    # Определяем корневую папку проекта
+    # os.path.abspath(__file__) - полный путь к этому файлу
+    # os.path.dirname() - родительская папка (config/)
+    # Еще один dirname() - корень проекта
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Путь к папке с шаблонами (HTML)
+    TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+
+    # Путь к папке со статикой (CSS, JS, картинки)
+    STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+    # ===== Настройки JSON =====
+    # Для корректного отображения русского языка в JSON ответах
+    JSON_AS_ASCII = False
+
+    # Чтобы ключи в JSON были в том же порядке, что и в словаре
+    JSON_SORT_KEYS = False
+
+    # ===== Локализация =====
+    # Язык по умолчанию
+    BABEL_DEFAULT_LOCALE = 'ru'
+
+    # Часовой пояс (для дат)
+    BABEL_DEFAULT_TIMEZONE = 'Europe/Moscow'
+
+    # ===== Логирование =====
+    # Уровень логирования (DEBUG, INFO, WARNING, ERROR)
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')

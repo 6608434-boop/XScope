@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/message/__init__.py
+НАЗНАЧЕНИЕ: Экспорт сервисов для работы с сообщениями
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все сервисы для сообщений через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.message import send_message, get_chat_history
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from services.message.send import send_message
+from services.message.get_history import get_chat_history
+
+__all__ = [
+    'send_message',
+    'get_chat_history',
+]

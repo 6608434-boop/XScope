@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/chat/__init__.py
+НАЗНАЧЕНИЕ: Экспорт маршрутов для управления чатами
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все маршруты для работы с чатами.
+
+ИСПОЛЬЗОВАНИЕ:
+    from routes.chat import chat_bp
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import Blueprint
+
+chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
+
+# Импортируем маршруты после создания blueprint
+from routes.chat import list, new, rename, delete, load
+
+__all__ = ['chat_bp']

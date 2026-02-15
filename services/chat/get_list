@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/chat/get_list.py
+НАЗНАЧЕНИЕ: Получение списка чатов пользователя
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Возвращает все чаты пользователя с форматированием для интерфейса.
+    Добавляет относительное время для отображения.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.chat.get_list import get_user_chats
+
+    chats = get_user_chats(user_id=1)
+
+ФУНКЦИИ:
+    get_user_chats(user_id) - список чатов с датами
+    _format_chat_date(dt) - форматирование даты для списка
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import List, Dict, Any
+from datetime import datetime
+
+from models.chat import Chat
+from utils.formatters import format_for_chat_list
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _format_chat_date(last_message_at) -> str:
+    """
+    Форматирует дату последнего сообщения для отображения в списке чатов.
+
+    Args:
+        last_message_at: Дата последнего сообщения (datetime или None)
+
+    Returns:
+        str: Отформатированная дата
+    """
+    if not last_message_at:
+        return "нет сообщений"
+
+    return format_for_chat_list(last_message_at)
+
+
+def get_user_chats(user_id: int) -> List[Dict[str, Any]]:
+    """
+    Получает все чаты пользователя с отформатированными датами.
+
+    Args:
+        user_id: ID пользователя
+
+    Returns:
+        List[Dict]: Список чатов с полями:
+            - id: ID чата
+            - title: название
+            - avatar: эмодзи профиля
+            - date: отформатированная дата
+    """
+    logger.info(f"📋 Запрос списка чатов для пользователя {user_id}")
+
+    # Получаем сырые данные из модели
+    raw_chats = Chat.get_user_chats(user_id)
+
+    # Форматируем для интерфейса
+    formatted_chats = []
+    for chat in raw_chats:
+        formatted_chats.append({
+            'id': chat['id'],
+            'title': chat['title'],
+            'avatar': chat['avatar'],
+            'date': _format_chat_date(chat.get('last_message_at'))
+        })
+
+    logger.debug(f"📊 Найдено {len(formatted_chats)} чатов")
+    return formatted_chats

@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/main/index.py
+НАЗНАЧЕНИЕ: Главная страница
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Отображает главную страницу с чатами.
+    Требует авторизации.
+
+МАРШРУТ:
+    GET /
+
+ИСПОЛЬЗОВАНИЕ:
+    Переход на главную страницу
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import render_template, session
+from routes.main import main_bp
+from utils.decorators import login_required
+from services.chat import get_user_chats
+from services.message import get_chat_history
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@main_bp.route('/')
+@login_required
+def index():
+    """
+    Главная страница с чатами.
+
+    Загружает:
+    - Список всех чатов пользователя
+    - Историю текущего чата
+    - Данные пользователя
+
+    Returns:
+        str: Отрендеренный HTML
+    """
+    user_id = session['user_id']
+    username = session.get('username', 'Пользователь')
+
+    logger.info(f"🏠 Загрузка главной страницы для пользователя {user_id}")
+
+    # 1. Получаем список чатов пользователя
+    chats = get_user_chats(user_id)
+
+    # 2. Определяем текущий чат (из сессии или первый в списке)
+    current_chat_id = session.get('current_chat_id')
+    if not current_chat_id and chats:
+        current_chat_id = chats[0]['id']
+        session['current_chat_id'] = current_chat_id
+        logger.debug(f"📌 Установлен текущий чат: {current_chat_id}")
+
+    # 3. Получаем историю текущего чата
+    history = []
+    current_chat_title = "Новый чат"
+
+    if current_chat_id:
+        try:
+            history = get_chat_history(user_id, current_chat_id)
+            # Находим название текущего чата
+            for chat in chats:
+                if chat['id'] == current_chat_id:
+                    current_chat_title = chat['title']
+                    break
+            logger.debug(f"📜 Загружено {len(history)} сообщений для чата {current_chat_id}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка загрузки истории чата {current_chat_id}: {e}")
+            history = []
+
+    # 4. Рендерим шаблон
+    return render_template(
+        'index.html',
+        chats=chats,
+        history=history,
+        username=username,
+        current_chat_id=current_chat_id,
+        current_chat_title=current_chat_title
+    )

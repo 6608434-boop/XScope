@@ -1,0 +1,19 @@
+# Веб-фреймворк
+Flask==3.0.0
+Werkzeug==3.0.0
+
+# Конфигурация
+python-dotenv==1.0.0
+
+# База данных
+psycopg2-binary==2.9.9
+
+# Аутентификация и 2FA
+pyotp==2.9.0
+qrcode==7.4.2
+
+# HTTP запросы
+requests==2.31.0
+
+# Для работы с DeepSeek (совместим с OpenAI API)
+openai==1.6.0

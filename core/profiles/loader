@@ -1,0 +1,190 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: core/profiles/loader.py
+НАЗНАЧЕНИЕ: Загрузка профилей ботов из текстовых файлов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-15
+
+ОПИСАНИЕ:
+    Читает все .txt файлы из папки prompts/ и загружает их в базу данных.
+    Обновляет существующие профили, создаёт новые.
+
+ИСПОЛЬЗОВАНИЕ:
+    from core.profiles import load_profiles
+    load_profiles()
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-15 - Oliver - создание
+================================================================================
+"""
+
+import os
+from pathlib import Path
+import logging
+
+from models.profile import BotProfile
+
+logger = logging.getLogger(__name__)
+
+# Метаданные профилей (имя, аватар, описание)
+PROFILES_META = {
+    'oliver': {
+        'name': 'Oliver Vance',
+        'avatar': '𝕏',
+        'description': 'Twitter-стратег, арбитраж трафика, антидетект'
+    },
+    'logan': {
+        'name': 'Логан',
+        'avatar': '👨‍🚀',
+        'description': 'Архитектор кода, ветеран NASA, наставник'
+    },
+    'arseniy': {
+        'name': 'Арсений',
+        'avatar': 'Я',
+        'description': 'Яндекс.Директ, семантика, ключевые слова'
+    },
+    'victor': {
+        'name': 'Victor',
+        'avatar': 'G',
+        'description': 'Google Ads, PMax, GA4'
+    },
+    'mark': {
+        'name': 'Марк',
+        'avatar': '❤️',
+        'description': 'Друг, наставник, психология, ИИ'
+    },
+    'teo': {
+        'name': 'Тео',
+        'avatar': '📱',
+        'description': 'Telegram API, боты, каналы, реклама'
+    },
+    'adam': {
+        'name': 'Адам',
+        'avatar': '💘',
+        'description': 'Приложения для знакомств, психология'
+    },
+    'steve': {
+        'name': 'Стив',
+        'avatar': '🍏',
+        'description': 'iOS-разработчик, SwiftUI, App Store'
+    },
+    'will': {
+        'name': 'Уилл Купер',
+        'avatar': '🤠',
+        'description': 'Английский язык, культура США, экс-маркетолог Coca-Cola'
+    },
+    'paul': {
+        'name': 'Поул Купер',
+        'avatar': '🧠',
+        'description': 'Наставник по продакт-менеджменту, ветеран Apple, Facebook, Telegram'
+    },
+}
+
+
+def load_profile_from_file(bot_id: str, file_path: Path) -> bool:
+    """
+    Загружает один профиль из файла.
+
+    Args:
+        bot_id: Идентификатор бота
+        file_path: Путь к .txt файлу
+
+    Returns:
+        bool: True если успешно загружен
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            prompt = f.read().strip()
+
+        if not prompt:
+            logger.warning(f"⚠️ Файл {file_path} пуст")
+            return False
+
+        meta = PROFILES_META.get(bot_id)
+        if not meta:
+            logger.warning(f"⚠️ Нет метаданных для {bot_id}")
+            return False
+
+        # Создаём или обновляем профиль в БД
+        BotProfile.create_or_update(
+            bot_id=bot_id,
+            name=meta['name'],
+            avatar=meta['avatar'],
+            prompt=prompt,
+            description=meta['description']
+        )
+
+        logger.info(f"✅ Загружен профиль {bot_id} ({len(prompt)} символов)")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка загрузки {file_path}: {e}")
+        return False
+
+
+def load_profiles(prompts_dir: str = 'prompts') -> dict:
+    """
+    Загружает все профили из папки prompts/.
+
+    Args:
+        prompts_dir: Путь к папке с промптами
+
+    Returns:
+        dict: Статистика загрузки {total: N, loaded: N, failed: N}
+    """
+    logger.info("📂 Загрузка профилей ботов...")
+
+    prompts_path = Path(prompts_dir)
+    if not prompts_path.exists():
+        logger.error(f"❌ Папка {prompts_dir} не найдена")
+        return {'total': 0, 'loaded': 0, 'failed': 0}
+
+    # Ищем все .txt файлы
+    txt_files = list(prompts_path.glob('*.txt'))
+    logger.info(f"🔍 Найдено {len(txt_files)} файлов с промптами")
+
+    stats = {
+        'total': len(txt_files),
+        'loaded': 0,
+        'failed': 0,
+        'skipped': 0
+    }
+
+    for file_path in txt_files:
+        bot_id = file_path.stem  # имя файла без .txt
+
+        if bot_id not in PROFILES_META:
+            logger.warning(f"⚠️ Неизвестный профиль {bot_id}, пропускаем")
+            stats['skipped'] += 1
+            continue
+
+        if load_profile_from_file(bot_id, file_path):
+            stats['loaded'] += 1
+        else:
+            stats['failed'] += 1
+
+    logger.info(f"📊 Итог: загружено {stats['loaded']}, ошибок {stats['failed']}, пропущено {stats['skipped']}")
+
+    return stats
+
+
+def reload_profile(bot_id: str) -> bool:
+    """
+    Перезагружает один профиль (полезно при разработке).
+
+    Args:
+        bot_id: Идентификатор бота
+
+    Returns:
+        bool: True если успешно
+    """
+    file_path = Path('prompts') / f"{bot_id}.txt"
+
+    if not file_path.exists():
+        logger.error(f"❌ Файл {file_path} не найден")
+        return False
+
+    return load_profile_from_file(bot_id, file_path)

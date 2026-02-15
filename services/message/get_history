@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/message/get_history.py
+НАЗНАЧЕНИЕ: Получение истории сообщений чата
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Возвращает историю сообщений чата с проверкой доступа.
+    Форматирует для отображения в интерфейсе.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.message.get_history import get_chat_history
+
+    history = get_chat_history(user_id=1, chat_id=123)
+
+ФУНКЦИИ:
+    get_chat_history(user_id, chat_id) - история сообщений
+    _format_message(role, content) - форматирование одного сообщения
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import List, Dict, Any, Tuple
+
+from models.message import Message
+from services.chat.validate_owner import ensure_chat_owner
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _format_message(role: str, content: str) -> Dict[str, Any]:
+    """
+    Форматирует одно сообщение для интерфейса.
+
+    Args:
+        role: 'user' или 'assistant'
+        content: Текст сообщения
+
+    Returns:
+        Dict: Отформатированное сообщение
+    """
+    return {
+        'role': role,
+        'content': content,
+        'is_user': role == 'user',
+        'is_bot': role == 'assistant'
+    }
+
+
+def get_chat_history(user_id: int, chat_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Получает историю сообщений чата с проверкой доступа.
+
+    Args:
+        user_id: ID пользователя
+        chat_id: ID чата
+        limit: Максимальное количество сообщений
+
+    Returns:
+        List[Dict]: Список отформатированных сообщений
+
+    Raises:
+        ValueError: Если чат не найден
+        PermissionError: Если пользователь не владелец
+    """
+    logger.info(f"📜 Запрос истории чата {chat_id} для пользователя {user_id}")
+
+    # 1. Проверяем доступ к чату
+    ensure_chat_owner(user_id, chat_id)
+
+    # 2. Получаем сырую историю
+    raw_history = Message.get_chat_history(chat_id, limit)
+
+    # 3. Форматируем для интерфейса
+    formatted_history = []
+    for role, content in raw_history:
+        formatted_history.append(_format_message(role, content))
+
+    logger.debug(f"📊 Загружено {len(formatted_history)} сообщений")
+
+    return formatted_history
+
+
+def get_chat_history_for_ai(user_id: int, chat_id: int, max_messages: int = 20) -> List[Dict[str, str]]:
+    """
+    Получает историю в формате для AI API.
+
+    Args:
+        user_id: ID пользователя
+        chat_id: ID чата
+        max_messages: Максимальное количество сообщений
+
+    Returns:
+        List[Dict]: Сообщения в формате [{"role": "...", "content": "..."}]
+    """
+    # Проверяем доступ
+    ensure_chat_owner(user_id, chat_id)
+
+    # Используем метод модели для форматирования
+    return Message.format_for_ai(chat_id, max_messages)
+
+
+def get_last_message(user_id: int, chat_id: int) -> Dict[str, Any]:
+    """
+    Получает последнее сообщение в чате.
+
+    Args:
+        user_id: ID пользователя
+        chat_id: ID чата
+
+    Returns:
+        Dict: Последнее сообщение или пустой словарь
+    """
+    ensure_chat_owner(user_id, chat_id)
+
+    last = Message.get_last_message(chat_id)
+    if last:
+        return _format_message(last['role'], last['content'])
+
+    return {}

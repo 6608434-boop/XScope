@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/database.py
+НАЗНАЧЕНИЕ: Настройки подключения к базе данных
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл содержит все настройки для работы с PostgreSQL.
+    Включает URL подключения, параметры пула соединений,
+    таймауты и SSL настройки (важно для Neon.tech).
+
+ИСПОЛЬЗОВАНИЕ:
+    from config.database import DatabaseConfig
+    db_url = DatabaseConfig.DATABASE_URL
+
+ПАРАМЕТРЫ:
+    DATABASE_URL - основной URL для подключения к БД
+    DB_POOL_MIN_SIZE - мин. количество соединений в пуле
+    DB_POOL_MAX_SIZE - макс. количество соединений в пуле
+    DB_CONNECT_TIMEOUT - таймаут подключения (сек)
+    DB_QUERY_TIMEOUT - таймаут запроса (сек)
+    DB_SSL_MODE - режим SSL (require, verify-full, etc)
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os  # для чтения переменных окружения
+
+
+class DatabaseConfig:
+    """
+    Настройки базы данных PostgreSQL.
+
+    Все параметры загружаются из .env файла или переменных окружения.
+    Для Neon.tech обязательно требуется SSL.
+    """
+
+    # ===== Основное подключение =====
+    # URL базы данных в формате:
+    # postgresql://user:password@host:port/database
+    # Обязательный параметр! Без него приложение не запустится
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+
+    # ===== Пул соединений =====
+    # Пул соединений позволяет переиспользовать подключения
+    # Минимальное количество соединений в пуле (всегда держим открытыми)
+    DB_POOL_MIN_SIZE = int(os.environ.get('DB_POOL_MIN_SIZE', '1'))
+
+    # Максимальное количество соединений (ограничение БД)
+    DB_POOL_MAX_SIZE = int(os.environ.get('DB_POOL_MAX_SIZE', '10'))
+
+    # ===== Таймауты (в секундах) =====
+    # Сколько ждать подключения к БД
+    DB_CONNECT_TIMEOUT = int(os.environ.get('DB_CONNECT_TIMEOUT', '10'))
+
+    # Сколько ждать выполнения запроса
+    DB_QUERY_TIMEOUT = int(os.environ.get('DB_QUERY_TIMEOUT', '30'))
+
+    # ===== SSL настройки =====
+    # Для Neon.tech обязательно require
+    # Возможные значения: disable, allow, prefer, require, verify-ca, verify-full
+    DB_SSL_MODE = os.environ.get('DB_SSL_MODE', 'require')
+
+    @property
+    def database_url_with_ssl(self):
+        """
+        Добавляет SSL параметры к URL если их там нет.
+
+        Это нужно для Neon.tech, где SSL обязателен.
+        Если в URL уже есть sslmode, оставляем как есть.
+
+        Returns:
+            str: URL с добавленным sslmode параметром
+        """
+        # Проверяем что URL вообще есть
+        if not self.DATABASE_URL:
+            return None
+
+        # Если SSL режим не задан или URL уже содержит sslmode
+        if not self.DB_SSL_MODE or 'sslmode' in self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        # Определяем разделитель параметров
+        separator = '&' if '?' in self.DATABASE_URL else '?'
+
+        # Добавляем sslmode к URL
+        return f"{self.DATABASE_URL}{separator}sslmode={self.DB_SSL_MODE}"
+
+    @classmethod
+    def validate(cls):
+        """
+        Проверяет наличие обязательных параметров.
+
+        Returns:
+            bool: True если все обязательные параметры есть
+
+        Raises:
+            ValueError: если DATABASE_URL не задан
+        """
+        if not cls.DATABASE_URL:
+            raise ValueError(
+                "DATABASE_URL не задан! "
+                "Укажите его в .env файле или переменных окружения."
+            )
+        return True

@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/security/hash.py
+НАЗНАЧЕНИЕ: Функции для хеширования паролей и данных
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Функции для безопасного хеширования паролей с использованием Werkzeug.
+    Использует надежные алгоритмы и соль для защиты.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.security.hash import hash_password, check_password
+
+    # При регистрации
+    password_hash = hash_password(user_password)
+
+    # При входе
+    if check_password(password_hash, input_password):
+        print("Пароль верный")
+
+ФУНКЦИИ:
+    hash_password() - создает хеш пароля
+    check_password() - проверяет пароль
+    generate_salt() - генерирует случайную соль
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import hashlib
+import secrets
+import string
+from typing import Tuple
+import logging
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+def hash_password(password: str, method: str = 'pbkdf2:sha256:600000') -> str:
+    """
+    Создает безопасный хеш пароля.
+
+    Использует Werkzeug generate_password_hash с надежными параметрами.
+
+    Args:
+        password (str): Пароль в открытом виде
+        method (str): Метод хеширования (по умолчанию pbkdf2:sha256:600000)
+
+    Returns:
+        str: Хеш пароля для хранения в БД
+
+    Пример:
+        hash = hash_password("my_secure_password")
+        # Результат: pbkdf2:sha256:600000$... (длинная строка)
+    """
+    if not password:
+        raise ValueError("Пароль не может быть пустым")
+
+    try:
+        hash_value = generate_password_hash(password, method=method)
+        logger.debug("Пароль успешно захеширован")
+        return hash_value
+    except Exception as e:
+        logger.error(f"Ошибка хеширования пароля: {e}")
+        raise
+
+
+def check_password(password_hash: str, password: str) -> bool:
+    """
+    Проверяет, соответствует ли пароль хешу.
+
+    Args:
+        password_hash (str): Хеш из БД
+        password (str): Пароль для проверки
+
+    Returns:
+        bool: True если пароль верный
+
+    Пример:
+        if check_password(stored_hash, user_input):
+            print("Добро пожаловать!")
+    """
+    if not password_hash or not password:
+        logger.warning("Попытка проверки с пустыми данными")
+        return False
+
+    try:
+        result = check_password_hash(password_hash, password)
+        if result:
+            logger.debug("Пароль верный")
+        else:
+            logger.debug("Пароль неверный")
+        return result
+    except Exception as e:
+        logger.error(f"Ошибка проверки пароля: {e}")
+        return False
+
+
+def generate_salt(length: int = 16) -> str:
+    """
+    Генерирует случайную соль для дополнительной безопасности.
+
+    Args:
+        length (int): Длина соли в символах
+
+    Returns:
+        str: Случайная строка
+
+    Пример:
+        salt = generate_salt()
+        # Результат: "a1b2c3d4e5f6g7h8"
+    """
+    alphabet = string.ascii_letters + string.digits
+    salt = ''.join(secrets.choice(alphabet) for _ in range(length))
+    logger.debug(f"Сгенерирована соль длиной {length}")
+    return salt
+
+
+def hash_with_salt(password: str, salt: str = None) -> Tuple[str, str]:
+    """
+    Хеширует пароль с солью (дополнительный уровень безопасности).
+
+    Args:
+        password (str): Пароль
+        salt (str): Соль (если None - генерируется новая)
+
+    Returns:
+        Tuple[str, str]: (хеш, соль)
+
+    Пример:
+        hash_value, salt = hash_with_salt("password")
+        # Сохраняем и то и другое в БД
+    """
+    if salt is None:
+        salt = generate_salt()
+
+    # Комбинируем пароль с солью
+    salted = password + salt
+
+    # Хешируем результат
+    hash_value = hashlib.sha256(salted.encode()).hexdigest()
+
+    logger.debug("Пароль захеширован с солью")
+    return hash_value, salt
+
+
+def verify_with_salt(password: str, hash_value: str, salt: str) -> bool:
+    """
+    Проверяет пароль с солью.
+
+    Args:
+        password (str): Пароль для проверки
+        hash_value (str): Хеш из БД
+        salt (str): Соль из БД
+
+    Returns:
+        bool: True если пароль верный
+    """
+    # Комбинируем проверяемый пароль с солью
+    salted = password + salt
+
+    # Хешируем
+    new_hash = hashlib.sha256(salted.encode()).hexdigest()
+
+    # Сравниваем
+    return secrets.compare_digest(new_hash, hash_value)
+
+
+def generate_api_key() -> str:
+    """
+    Генерирует случайный API ключ.
+
+    Returns:
+        str: Случайный ключ формата "xscope_xxx...xxx"
+
+    Пример:
+        api_key = generate_api_key()
+        # "xscope_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p"
+    """
+    # Генерируем 32 случайных байта и преобразуем в hex
+    random_bytes = secrets.token_bytes(32)
+    key_part = random_bytes.hex()
+
+    # Добавляем префикс для идентификации
+    api_key = f"xscope_{key_part}"
+
+    logger.debug("Сгенерирован новый API ключ")
+    return api_key

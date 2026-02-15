@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/environments/production.py
+НАЗНАЧЕНИЕ: Настройки для продакшн режима
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Строгие настройки для боевого режима.
+    Все критичные параметры должны быть в .env!
+
+ИСПОЛЬЗОВАНИЕ:
+    Автоматически загружается через config/__init__.py
+    при FLASK_ENV=production
+
+ОСОБЕННОСТИ:
+    - DEBUG выключен
+    - Строгие настройки безопасности
+    - Rate limiting включен
+    - Валидация обязательных параметров
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+import logging
+from config.base import BaseConfig
+from config.database import DatabaseConfig
+from config.api_keys import APIConfig
+from config.security import SecurityConfig
+from config.features import FeatureConfig
+
+logger = logging.getLogger(__name__)
+
+
+class ProductionConfig(
+    BaseConfig,
+    DatabaseConfig,
+    APIConfig,
+    SecurityConfig,
+    FeatureConfig
+):
+    """
+    Настройки для продакшн режима.
+    """
+
+    # ===== Режимы работы =====
+    DEBUG = False
+    TESTING = False
+
+    # ===== Проверка обязательных параметров =====
+    def __init__(self):
+        """При создании проверяем критичные настройки"""
+        self._validate_required()
+
+    def _validate_required(self):
+        """Проверяет наличие обязательных параметров"""
+
+        # База данных обязательна
+        if not self.DATABASE_URL:
+            raise ValueError(
+                "❌ DATABASE_URL обязателен в production! "
+                "Укажите его в .env"
+            )
+
+        # Секретный ключ обязателен
+        if not self.SECRET_KEY or self.SECRET_KEY == 'your-secret-key-here-change-in-production':
+            raise ValueError(
+                "❌ SECRET_KEY обязателен в production! "
+                "Установите уникальный ключ в .env"
+            )
+
+        # Для продакшна желателен HTTPS
+        if not self.SESSION_COOKIE_SECURE:
+            logger.warning(
+                "⚠️ SESSION_COOKIE_SECURE=False в production! "
+                "Сессии будут передаваться по HTTP - это небезопасно!"
+            )
+
+    # ===== База данных =====
+    # Используем только URL из .env
+    # (никаких значений по умолчанию)
+
+    # Уменьшаем таймауты для быстрого обнаружения проблем
+    DB_CONNECT_TIMEOUT = 5
+    DB_QUERY_TIMEOUT = 15
+
+    # ===== Безопасность =====
+    # В продакшне обязательно HTTPS
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # Включаем HSTS
+    HSTS_ENABLED = True
+    HSTS_MAX_AGE = 31536000  # 1 год
+    HSTS_INCLUDE_SUBDOMAINS = True
+
+    # ===== CORS =====
+    # В продакшне указываем конкретные домены
+    # Должны быть заданы в .env через запятую
+    CORS_ORIGINS = os.environ.get(
+        'CORS_ORIGINS',
+        'https://xscope.app'  # замените на свой домен
+    ).split(',')
+
+    # ===== Rate Limiting =====
+    # В продакшне обязательно включено
+    RATE_LIMIT_ENABLED = True
+
+    # Более строгие лимиты для продакшна
+    RATE_LIMIT_REQUESTS = int(
+        os.environ.get('PROD_RATE_LIMIT_REQUESTS', '60')
+    )
+    RATE_LIMIT_PERIOD = 60  # 60 запросов в минуту
+
+    # Очень строгие лимиты для логина
+    RATE_LIMIT_LOGIN_REQUESTS = 5
+    RATE_LIMIT_LOGIN_PERIOD = 300  # 5 попыток за 5 минут
+
+    # ===== Логирование =====
+    # В продакшне только важные сообщения
+    LOG_LEVEL = 'WARNING'
+
+    # ===== Флаги функций =====
+    # В продакшне можно выборочно включать функции
+    # Значения должны быть явно заданы в .env
+    # (здесь только значения по умолчанию)
+
+    # Режим обслуживания (можно включить через .env)
+    MAINTENANCE_MODE = os.environ.get(
+        'MAINTENANCE_MODE',
+        'False'
+    ).lower() == 'true'

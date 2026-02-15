@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: core/__init__.py
+НАЗНАЧЕНИЕ: Главный инициализатор приложения
+АВТОР: Oliver Vance
+ДАТА: 2026-02-15
+
+ОПИСАНИЕ:
+    Собирает все компоненты ядра в единую точку входа.
+    Упрощает импорт и инициализацию.
+
+ИСПОЛЬЗОВАНИЕ:
+    from core import create_app, init_db, load_profiles, check_config
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-15 - Oliver - создание
+================================================================================
+"""
+
+# Фабрика приложения
+from core.factory import create_app
+
+# База данных
+from core.database import init_db
+
+# Профили ботов
+from core.profiles import load_profiles
+
+# Хуки
+from core.hooks import setup_error_handlers
+
+# Проверки при старте
+from core.startup import check_config
+
+# CLI команды
+from core.cli import register_commands
+
+__all__ = [
+    'create_app',
+    'init_db',
+    'load_profiles',
+    'setup_error_handlers',
+    'check_config',
+    'register_commands',
+]

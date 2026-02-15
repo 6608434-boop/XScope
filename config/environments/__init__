@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/environments/__init__.py
+НАЗНАЧЕНИЕ: Экспорт классов окружений
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными классы конфигурации для разных окружений.
+
+ИСПОЛЬЗОВАНИЕ:
+    from config.environments import DevelopmentConfig, ProductionConfig
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from config.environments.development import DevelopmentConfig
+from config.environments.production import ProductionConfig
+from config.environments.testing import TestingConfig
+
+__all__ = [
+    'DevelopmentConfig',
+    'ProductionConfig',
+    'TestingConfig',
+]

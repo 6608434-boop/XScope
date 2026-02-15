@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: models/__init__.py
+НАЗНАЧЕНИЕ: Экспорт всех моделей
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все модели через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from models import User, Chat, Message, BotProfile, ProfileRule
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from models.user import User
+from models.chat import Chat
+from models.message import Message
+from models.profile import BotProfile
+from models.rule import ProfileRule
+
+__all__ = [
+    'User',
+    'Chat',
+    'Message',
+    'BotProfile',
+    'ProfileRule',
+]

@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/analyze/__init__.py
+НАЗНАЧЕНИЕ: Экспорт маршрутов для AI анализа
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все маршруты для обработки сообщений.
+
+ИСПОЛЬЗОВАНИЕ:
+    from routes.analyze import analyze_bp
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import Blueprint
+
+analyze_bp = Blueprint('analyze', __name__, url_prefix='/analyze')
+
+# Импортируем маршруты после создания blueprint
+from routes.analyze import message
+
+__all__ = ['analyze_bp']

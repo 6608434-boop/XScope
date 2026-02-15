@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/auth/__init__.py
+НАЗНАЧЕНИЕ: Экспорт маршрутов для авторизации
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все маршруты для авторизации.
+
+ИСПОЛЬЗОВАНИЕ:
+    from routes.auth import auth_bp
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import Blueprint
+
+auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+# Импортируем маршруты после создания blueprint
+from routes.auth import login, logout, register, profile
+
+__all__ = ['auth_bp']

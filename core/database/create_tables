@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: core/database/create_tables.py
+НАЗНАЧЕНИЕ: Создание таблиц в базе данных
+АВТОР: Oliver Vance
+ДАТА: 2026-02-15
+
+ОПИСАНИЕ:
+    Создаёт все необходимые таблицы, если их нет.
+    Вызывается при старте приложения.
+
+ИСПОЛЬЗОВАНИЕ:
+    from core.database import init_db
+    init_db()
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-15 - Oliver - создание
+================================================================================
+"""
+
+import logging
+from utils.db import get_db_connection
+
+logger = logging.getLogger(__name__)
+
+
+def init_db():
+    """
+    Создаёт все таблицы в базе данных.
+    Безопасно для повторного вызова (использует IF NOT EXISTS).
+    """
+    logger.info("🗄️ Инициализация таблиц базы данных...")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        # ===== Таблица users =====
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(80) UNIQUE NOT NULL,
+                password_hash VARCHAR(200) NOT NULL,
+                twofa_secret VARCHAR(32),
+                twofa_enabled BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        logger.debug("✅ Таблица users готова")
+
+        # ===== Таблица bot_profiles =====
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS bot_profiles (
+                id SERIAL PRIMARY KEY,
+                bot_id VARCHAR(50) UNIQUE NOT NULL,
+                bot_name VARCHAR(100) NOT NULL,
+                avatar VARCHAR(10) NOT NULL,
+                system_prompt TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        logger.debug("✅ Таблица bot_profiles готова")
+
+        # ===== Таблица chats =====
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(200) NOT NULL,
+                bot_profile_id INTEGER REFERENCES bot_profiles(id) ON DELETE SET NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        logger.debug("✅ Таблица chats готова")
+
+        # ===== Таблица messages =====
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+                role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        logger.debug("✅ Таблица messages готова")
+
+        # ===== Таблица profile_rules =====
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS profile_rules (
+                id SERIAL PRIMARY KEY,
+                profile_id INTEGER NOT NULL REFERENCES bot_profiles(id) ON DELETE CASCADE,
+                rule_text TEXT NOT NULL,
+                priority VARCHAR(10) DEFAULT '•' CHECK (priority IN ('❗', '📌', '•')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        logger.debug("✅ Таблица profile_rules готова")
+
+        # ===== Индексы для ускорения =====
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_rules_profile_id ON profile_rules(profile_id)")
+        logger.debug("✅ Индексы созданы")
+
+        conn.commit()
+        logger.info("✅ Все таблицы успешно созданы/проверены")
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"❌ Ошибка создания таблиц: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def drop_all_tables():
+    """
+    Удаляет все таблицы (для тестов).
+    Будьте осторожны - это необратимо!
+    """
+    logger.warning("⚠️ Удаление всех таблиц!")
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("DROP TABLE IF EXISTS profile_rules CASCADE")
+        cur.execute("DROP TABLE IF EXISTS messages CASCADE")
+        cur.execute("DROP TABLE IF EXISTS chats CASCADE")
+        cur.execute("DROP TABLE IF EXISTS bot_profiles CASCADE")
+        cur.execute("DROP TABLE IF EXISTS users CASCADE")
+
+        conn.commit()
+        logger.info("✅ Все таблицы удалены")
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"❌ Ошибка удаления таблиц: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()

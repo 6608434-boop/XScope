@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/formatters/date.py
+НАЗНАЧЕНИЕ: Форматирование дат и времени
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Функции для форматирования дат в разные форматы.
+    Особенно полезно для отображения в интерфейсе и API.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.formatters.date import format_datetime, format_date_ru
+
+    date_str = format_datetime(created_at)  # "2026-02-14 15:30:45"
+    ru_date = format_date_ru(created_at)    # "14 февраля 2026"
+
+ФУНКЦИИ:
+    format_datetime() - стандартный формат для логов
+    format_date_ru() - русский формат для интерфейса
+    format_time_ago() - относительное время ("5 минут назад")
+    parse_date() - парсинг строки в дату
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from datetime import datetime, timedelta
+from typing import Union, Optional
+import logging
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+# Константы
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATE_FORMAT = "%Y-%m-%d"
+TIME_FORMAT = "%H:%M:%S"
+
+# Русские названия месяцев
+MONTHS_RU = [
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря"
+]
+
+
+def format_datetime(dt: Optional[datetime] = None, format_str: str = DATETIME_FORMAT) -> str:
+    """
+    Форматирует дату и время в строку.
+
+    Args:
+        dt: Дата и время (если None - использует текущее)
+        format_str: Формат вывода (по умолчанию "%Y-%m-%d %H:%M:%S")
+
+    Returns:
+        str: Отформатированная дата
+
+    Пример:
+        format_datetime()  # "2026-02-14 15:30:45"
+        format_datetime(created_at, "%d.%m.%Y")  # "14.02.2026"
+    """
+    if dt is None:
+        dt = datetime.now()
+
+    return dt.strftime(format_str)
+
+
+def format_date_ru(dt: Optional[datetime] = None) -> str:
+    """
+    Форматирует дату в русском формате: "14 февраля 2026".
+
+    Args:
+        dt: Дата (если None - использует текущую)
+
+    Returns:
+        str: Дата в русском формате
+
+    Пример:
+        format_date_ru(created_at)  # "14 февраля 2026"
+    """
+    if dt is None:
+        dt = datetime.now()
+
+    day = dt.day
+    month = MONTHS_RU[dt.month - 1]
+    year = dt.year
+
+    return f"{day} {month} {year}"
+
+
+def format_datetime_ru(dt: Optional[datetime] = None) -> str:
+    """
+    Форматирует дату и время в русском формате: "14 февраля 2026 15:30".
+
+    Args:
+        dt: Дата и время (если None - использует текущее)
+
+    Returns:
+        str: Дата и время в русском формате
+
+    Пример:
+        format_datetime_ru(created_at)  # "14 февраля 2026 15:30"
+    """
+    if dt is None:
+        dt = datetime.now()
+
+    date_ru = format_date_ru(dt)
+    time_str = dt.strftime("%H:%M")
+
+    return f"{date_ru} {time_str}"
+
+
+def format_time_ago(dt: datetime, current_time: Optional[datetime] = None) -> str:
+    """
+    Форматирует время как "сколько времени прошло".
+
+    Args:
+        dt: Дата и время события
+        current_time: Текущее время (если None - использует datetime.now())
+
+    Returns:
+        str: Относительное время ("только что", "5 минут назад", и т.д.)
+
+    Пример:
+        format_time_ago(created_at)  # "2 часа назад"
+    """
+    if current_time is None:
+        current_time = datetime.now()
+
+    delta = current_time - dt
+
+    if delta < timedelta(seconds=10):
+        return "только что"
+
+    if delta < timedelta(minutes=1):
+        seconds = int(delta.total_seconds())
+        return f"{seconds} секунд назад"
+
+    if delta < timedelta(hours=1):
+        minutes = int(delta.total_seconds() / 60)
+        if minutes == 1:
+            return "1 минуту назад"
+        elif 2 <= minutes <= 4:
+            return f"{minutes} минуты назад"
+        else:
+            return f"{minutes} минут назад"
+
+    if delta < timedelta(days=1):
+        hours = int(delta.total_seconds() / 3600)
+        if hours == 1:
+            return "1 час назад"
+        elif 2 <= hours <= 4:
+            return f"{hours} часа назад"
+        else:
+            return f"{hours} часов назад"
+
+    if delta < timedelta(days=7):
+        days = delta.days
+        if days == 1:
+            return "вчера"
+        elif days == 2:
+            return "позавчера"
+        else:
+            return f"{days} дней назад"
+
+    # Если больше недели - показываем дату
+    return format_date_ru(dt)
+
+
+def format_for_chat_list(dt: datetime) -> str:
+    """
+    Форматирует дату для отображения в списке чатов.
+
+    Правила:
+    - Сегодня: показывает время (15:30)
+    - Вчера: "вчера"
+    - На этой неделе: день недели (пн, вт, ср...)
+    - Раньше: дата (14.02.2026)
+
+    Args:
+        dt: Дата последнего сообщения
+
+    Returns:
+        str: Отформатированная дата
+
+    Пример:
+        format_for_chat_list(created_at)  # "15:30" или "вчера" или "14.02"
+    """
+    now = datetime.now()
+    today = now.date()
+    dt_date = dt.date()
+
+    if dt_date == today:
+        # Сегодня - показываем время
+        return dt.strftime("%H:%M")
+
+    yesterday = today - timedelta(days=1)
+    if dt_date == yesterday:
+        # Вчера
+        return "вчера"
+
+    # Если на этой неделе
+    if (today - dt_date).days < 7:
+        # Дни недели: пн, вт, ср, чт, пт, сб, вс
+        weekdays = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+        return weekdays[dt.weekday()]
+
+    # Старые сообщения - показываем дату
+    return dt.strftime("%d.%m")
+
+
+def parse_date(date_str: str, format_str: str = DATE_FORMAT) -> Optional[datetime]:
+    """
+    Парсит строку в дату.
+
+    Args:
+        date_str: Строка с датой
+        format_str: Формат строки
+
+    Returns:
+        Optional[datetime]: Дата или None если ошибка парсинга
+
+    Пример:
+        dt = parse_date("2026-02-14")
+        if dt:
+            print(dt.year)
+    """
+    try:
+        return datetime.strptime(date_str, format_str)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Ошибка парсинга даты '{date_str}': {e}")
+        return None

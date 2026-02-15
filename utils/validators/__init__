@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/validators/__init__.py
+НАЗНАЧЕНИЕ: Экспорт валидаторов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все функции валидации через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.validators import validate_chat_title, is_chat_title_valid
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from utils.validators.chat_title import (
+    validate_chat_title,
+    is_chat_title_valid,
+    sanitize_chat_title,
+    get_title_validation_error,
+    MIN_TITLE_LENGTH,
+    MAX_TITLE_LENGTH,
+)
+
+__all__ = [
+    'validate_chat_title',
+    'is_chat_title_valid',
+    'sanitize_chat_title',
+    'get_title_validation_error',
+    'MIN_TITLE_LENGTH',
+    'MAX_TITLE_LENGTH',
+]

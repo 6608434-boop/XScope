@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/api/__init__.py
+НАЗНАЧЕНИЕ: Экспорт API маршрутов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все API маршруты.
+
+ИСПОЛЬЗОВАНИЕ:
+    from routes.api import api_bp
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import Blueprint
+
+api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+# Импортируем маршруты после создания blueprint
+from routes.api import profiles
+
+__all__ = ['api_bp']

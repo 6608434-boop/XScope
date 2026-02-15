@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/environments/testing.py
+НАЗНАЧЕНИЕ: Настройки для режима тестирования
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Настройки для запуска тестов.
+    Использует отдельную тестовую базу данных
+    и отключает все внешние сервисы.
+
+ИСПОЛЬЗОВАНИЕ:
+    Автоматически загружается через config/__init__.py
+    при FLASK_ENV=testing
+
+ОСОБЕННОСТИ:
+    - Отдельная тестовая БД (SQLite или test PostgreSQL)
+    - Моки для внешних API
+    - Быстрые таймауты
+    - Предсказуемое поведение
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+from config.base import BaseConfig
+from config.database import DatabaseConfig
+from config.security import SecurityConfig
+from config.features import FeatureConfig
+
+
+class TestingConfig(
+    BaseConfig,
+    DatabaseConfig,
+    SecurityConfig,
+    FeatureConfig
+):
+    """
+    Настройки для режима тестирования.
+    """
+
+    # ===== Режимы работы =====
+    DEBUG = False
+    TESTING = True  # Важно! Включает режим тестирования
+
+    # ===== База данных =====
+    # Для тестов используем отдельную БД
+    @property
+    def DATABASE_URL(self):
+        """Использует тестовую БД"""
+        # Сначала пробуем взять из .env
+        env_url = os.environ.get('TEST_DATABASE_URL')
+        if env_url:
+            return env_url
+        # По умолчанию - SQLite в памяти (быстро!)
+        return 'sqlite:///:memory:'
+
+    # Очень быстрые таймауты для тестов
+    DB_CONNECT_TIMEOUT = 1
+    DB_QUERY_TIMEOUT = 2
+
+    # ===== Безопасность =====
+    # В тестах отключаем безопасность для простоты
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_HTTPONLY = False
+    SESSION_COOKIE_SAMESITE = None
+
+    # Фиксированный ключ для предсказуемости
+    SECRET_KEY = 'test-secret-key'
+
+    # ===== Rate Limiting =====
+    # В тестах отключаем лимиты
+    RATE_LIMIT_ENABLED = False
+
+    # ===== CORS =====
+    # В тестах разрешаем всё
+    CORS_ORIGINS = ['*']
+
+    # ===== Флаги функций =====
+    # В тестах можно включить всё для покрытия
+    ENABLE_2FA = True
+    ENABLE_TELEGRAM = True
+    ENABLE_GOOGLE_SHEETS = True
+    ENABLE_DEEPSEEK = True
+    ENABLE_STREAMING = True
+
+    # Все профили включены
+    ENABLE_OLIVER = True
+    ENABLE_ISAAC = True
+    ENABLE_ARSENIY = True
+    ENABLE_VICTOR = True
+    ENABLE_MARK = True
+    ENABLE_TEO = True
+    ENABLE_ADAM = True
+    ENABLE_STEVE = True
+    ENABLE_WILL = True
+
+    # ===== Логирование =====
+    # В тестах минимум логов
+    LOG_LEVEL = 'ERROR'
+
+    # ===== Тестовые заглушки =====
+    # Флаг для использования моков вместо реальных API
+    USE_MOCKS = os.environ.get('USE_MOCKS', 'True').lower() == 'true'

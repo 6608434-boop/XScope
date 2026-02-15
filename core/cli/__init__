@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: core/cli/__init__.py
+НАЗНАЧЕНИЕ: Экспорт CLI команд
+АВТОР: Oliver Vance
+ДАТА: 2026-02-15
+
+ОПИСАНИЕ:
+    Делает доступными все CLI команды и регистрирует их.
+
+ИСПОЛЬЗОВАНИЕ:
+    from core.cli import register_commands
+    register_commands(app)
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-15 - Oliver - создание
+================================================================================
+"""
+
+import logging
+from flask import Flask
+
+from core.cli.init_db import init_db_command
+from core.cli.load_profiles import load_profiles_command
+
+logger = logging.getLogger(__name__)
+
+
+def register_commands(app: Flask):
+    """
+    Регистрирует все CLI команды в приложении.
+
+    Args:
+        app: Flask приложение
+    """
+    logger.info("⌨️ Регистрация CLI команд...")
+
+    app.cli.add_command(init_db_command)
+    app.cli.add_command(load_profiles_command)
+
+    logger.info("✅ CLI команды зарегистрированы: init-db, load-profiles")
+
+
+__all__ = ['register_commands']

@@ -1,0 +1,18 @@
+def divide_numbers(a, b):
+    result = a / b
+    return result
+
+def process_data(data):
+    total = 0
+    for i in range(len(data) + 1):
+        total += data[i]
+    return total
+
+def main():
+    x = divide_numbers(10, 0)
+    data = [1, 2, 3]
+    result = process_data(data)
+    print(f"Result: {result}")
+
+if __name__ == "__main__":
+    main()

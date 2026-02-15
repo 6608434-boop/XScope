@@ -1,0 +1,112 @@
+# 📁 ПАПКА: core/
+
+## 📌 НАЗНАЧЕНИЕ
+Ядро приложения — всё, что связано с инициализацией, запуском и настройкой Flask.
+
+## 📋 СТРУКТУРА
+
+    📁 core/
+    │
+    ├── 📄 __init__.py           # Главный инициализатор
+    │
+    ├── 📁 factory/               # Создание приложения
+    │   ├── 📄 __init__.py
+    │   └── 📄 create_app.py       # create_app()
+    │
+    ├── 📁 database/              # Инициализация БД
+    │   ├── 📄 __init__.py
+    │   └── 📄 create_tables.py    # Создание таблиц
+    │
+    ├── 📁 profiles/              # Загрузка профилей
+    │   ├── 📄 __init__.py
+    │   └── 📄 loader.py           # Загрузка из prompts/
+    │
+    ├── 📁 hooks/                  # Хуки приложения
+    │   ├── 📄 __init__.py
+    │   └── 📄 error_handlers.py   # Обработка ошибок
+    │
+    ├── 📁 startup/                # Проверки при старте
+    │   ├── 📄 __init__.py
+    │   └── 📄 check_config.py     # Проверка конфига
+    │
+    ├── 📁 cli/                    # Flask CLI команды
+    │   ├── 📄 __init__.py
+    │   ├── 📄 init_db.py           # flask init-db
+    │   └── 📄 load_profiles.py     # flask load-profiles
+    │
+    └── 📄 CORE.README.md          # Этот файл
+
+## 🎯 КАК ИСПОЛЬЗОВАТЬ
+
+### Импорт через главный __init__:
+from core import create_app, init_db, load_profiles, check_config
+
+### Импорт конкретного модуля:
+from core.factory import create_app
+from core.database import init_db
+from core.profiles import load_profiles
+
+## 📦 ОПИСАНИЕ МОДУЛЕЙ
+
+### factory/
+| Функция | Описание |
+|---------|----------|
+| create_app() | Создаёт и настраивает Flask приложение |
+
+### database/
+| Функция | Описание |
+|---------|----------|
+| init_db() | Создаёт все таблицы в БД |
+
+### profiles/
+| Функция | Описание |
+|---------|----------|
+| load_profiles() | Загружает профили из prompts/ в БД |
+| reload_profile(bot_id) | Перезагружает одного бота |
+
+### hooks/
+| Функция | Описание |
+|---------|----------|
+| setup_error_handlers(app) | Настраивает страницы ошибок (404, 500 и т.д.) |
+
+### startup/
+| Функция | Описание |
+|---------|----------|
+| check_config() | Проверяет конфигурацию при старте |
+| print_banner() | Показывает красивый баннер |
+
+### cli/
+| Команда | Описание |
+|---------|----------|
+| flask init-db | Создаёт таблицы в БД |
+| flask load-profiles | Загружает профили из prompts/ |
+| flask load-profiles --bot will | Загрузить только одного |
+| flask reset-db --force | Пересоздать БД (осторожно!) |
+
+## ✅ ПРИМЕРЫ
+
+### Создание приложения:
+from core import create_app
+app = create_app()
+
+### Проверка конфигурации:
+from core.startup import check_config, print_banner
+print_banner()
+check_config()
+
+### CLI команды в терминале:
+flask init-db
+flask load-profiles
+flask load-profiles --bot will
+
+## 📦 ЗАВИСИМОСТИ
+- config/ — для настроек
+- models/ — для работы с БД
+- routes/ — для регистрации маршрутов
+- utils/ — для утилит
+
+## 👨‍💻 АВТОР
+Oliver Vance — ядро трогать осторожно, от него всё зависит!
+
+## 📝 ИСТОРИЯ ИЗМЕНЕНИЙ
+2026-02-15 - Oliver Vance - Создание документации

@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/auth/register.py
+НАЗНАЧЕНИЕ: Регистрация нового пользователя
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    - GET /auth/register - показывает форму регистрации
+    - POST /auth/register - создаёт нового пользователя
+
+МАРШРУТ:
+    GET /auth/register
+    POST /auth/register
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import render_template, request, redirect, url_for, session, flash
+from routes.auth import auth_bp
+from services.user import register_user
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """
+    Страница регистрации.
+
+    GET: Показывает форму регистрации
+    POST: Создаёт нового пользователя
+    """
+    # Если пользователь уже авторизован - отправляем на главную
+    if 'user_id' in session:
+        logger.debug(f"Пользователь {session.get('user_id')} уже авторизован, редирект на главную")
+        return redirect(url_for('main.index'))
+
+    if request.method == 'POST':
+        # Обработка отправки формы
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+
+        logger.info(f"📝 Попытка регистрации: {username}")
+
+        # Валидация
+        if not username or not password:
+            flash('Заполните все поля', 'error')
+            return render_template('register.html')
+
+        if password != password_confirm:
+            flash('Пароли не совпадают', 'error')
+            return render_template('register.html')
+
+        try:
+            # Регистрация пользователя
+            user_id = register_user(username, password)
+
+            # Автоматический вход после регистрации
+            session['user_id'] = user_id
+            session['username'] = username
+            session.permanent = True
+
+            logger.info(f"✅ Успешная регистрация: {username} (ID: {user_id})")
+            flash('Регистрация прошла успешно! Добро пожаловать!', 'success')
+
+            return redirect(url_for('main.index'))
+
+        except ValueError as e:
+            # Ошибка валидации (слабый пароль или username занят)
+            logger.warning(f"❌ Ошибка регистрации {username}: {e}")
+            flash(str(e), 'error')
+            return render_template('register.html')
+
+        except Exception as e:
+            # Неожиданная ошибка
+            logger.error(f"❌ Неожиданная ошибка при регистрации {username}: {e}")
+            flash('Произошла ошибка при регистрации. Попробуйте позже.', 'error')
+            return render_template('register.html')
+
+    # GET запрос - показываем форму
+    return render_template('register.html')

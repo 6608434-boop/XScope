@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/decorators/login_required.py
+НАЗНАЧЕНИЕ: Декоратор для проверки авторизации
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Декоратор, который проверяет, авторизован ли пользователь.
+    Если нет - возвращает ошибку 401 или редирект на страницу входа.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.decorators.login_required import login_required
+
+    @app.route('/profile')
+    @login_required
+    def profile():
+        return render_template('profile.html')
+
+ФУНКЦИИ:
+    login_required(f) - декоратор для маршрутов
+    request_wants_json() - проверяет тип ожидаемого ответа
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from functools import wraps
+from flask import session, jsonify, redirect, url_for, request
+import logging
+from typing import Union
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+def request_wants_json() -> bool:
+    """
+    Проверяет, ожидает ли клиент JSON ответ.
+
+    Анализирует заголовок Accept в HTTP запросе.
+
+    Returns:
+        bool: True если клиент хочет JSON, False если HTML
+
+    Пример:
+        if request_wants_json():
+            return jsonify({'error': 'Auth required'}), 401
+        else:
+            return redirect(url_for('auth.login'))
+    """
+    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    return best == 'application/json' and \
+           request.accept_mimetypes[best] > request.accept_mimetypes['text/html']
+
+
+def login_required(f):
+    """
+    Декоратор для проверки авторизации пользователя.
+
+    Если пользователь не авторизован:
+    - Для API запросов: возвращает JSON с ошибкой 401
+    - Для HTML запросов: редирект на страницу входа
+
+    Args:
+        f: Функция-обработчик маршрута
+
+    Returns:
+        wrapper: Обернутая функция с проверкой
+
+    Пример:
+        @app.route('/profile')
+        @login_required
+        def profile():
+            return render_template('profile.html')
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Проверяем наличие пользователя в сессии
+        if 'user_id' not in session:
+            logger.debug(f"Неавторизованный доступ к {f.__name__}")
+
+            # Для API запросов возвращаем JSON
+            if request_wants_json():
+                return jsonify({
+                    'error': 'Authentication required',
+                    'message': 'Необходимо авторизоваться'
+                }), 401
+
+            # Для обычных запросов - редирект на логин
+            return redirect(url_for('auth.login'))
+
+        # Пользователь авторизован - выполняем исходную функцию
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def admin_required(f):
+    """
+    Декоратор для проверки прав администратора.
+
+    Требует, чтобы пользователь был не только авторизован,
+    но и имел роль admin.
+
+    Args:
+        f: Функция-обработчик маршрута
+
+    Returns:
+        wrapper: Обернутая функция с проверкой
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Сначала проверяем авторизацию
+        if 'user_id' not in session:
+            if request_wants_json():
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('auth.login'))
+
+        # Проверяем роль администратора
+        # TODO: добавить проверку роли из БД
+        user_role = session.get('role', 'user')
+
+        if user_role != 'admin':
+            logger.warning(f"Попытка доступа к админке пользователем {session.get('user_id')}")
+
+            if request_wants_json():
+                return jsonify({'error': 'Admin privileges required'}), 403
+
+            return redirect(url_for('main.index'))
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def get_current_user_id() -> Union[int, None]:
+    """
+    Возвращает ID текущего пользователя из сессии.
+
+    Удобно для использования в сервисах.
+
+    Returns:
+        Union[int, None]: ID пользователя или None если не авторизован
+
+    Пример:
+        user_id = get_current_user_id()
+        if user_id:
+            chats = get_user_chats(user_id)
+    """
+    return session.get('user_id')

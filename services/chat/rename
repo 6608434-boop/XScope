@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/chat/rename.py
+НАЗНАЧЕНИЕ: Переименование чата
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Переименовывает чат с проверкой:
+    - Существует ли чат
+    - Является ли пользователь владельцем
+    - Валидация нового названия
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.chat.rename import rename_chat
+
+    success = rename_chat(
+        user_id=1,
+        chat_id=123,
+        new_title="Новое название"
+    )
+
+ФУНКЦИИ:
+    rename_chat(user_id, chat_id, new_title) - переименование
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from models.chat import Chat
+from utils.validators import validate_chat_title, sanitize_chat_title
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def rename_chat(user_id: int, chat_id: int, new_title: str) -> bool:
+    """
+    Переименовывает чат с проверкой прав.
+
+    Args:
+        user_id: ID пользователя (владелец)
+        chat_id: ID чата
+        new_title: Новое название
+
+    Returns:
+        bool: True если успешно
+
+    Raises:
+        ValueError: Если чат не найден
+        ValueError: Если пользователь не владелец
+        ValueError: Если название некорректно
+    """
+    logger.info(f"✏️ Запрос на переименование чата {chat_id} для пользователя {user_id}")
+
+    # 1. Проверяем существование чата
+    chat = Chat.get_by_id(chat_id)
+    if not chat:
+        error_msg = f"Чат {chat_id} не найден"
+        logger.error(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+
+    # 2. Проверяем права владельца
+    if chat['user_id'] != user_id:
+        error_msg = f"Пользователь {user_id} не является владельцем чата {chat_id}"
+        logger.error(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+
+    # 3. Валидируем новое название
+    try:
+        validate_chat_title(new_title)
+    except ValueError as e:
+        logger.error(f"❌ Некорректное название: {e}")
+        raise
+
+    # 4. Очищаем название
+    clean_title = sanitize_chat_title(new_title)
+    if clean_title != new_title:
+        logger.debug(f"Название очищено: '{new_title}' → '{clean_title}'")
+
+    # 5. Переименовываем
+    success = Chat.rename(chat_id, clean_title)
+
+    if success:
+        logger.info(f"✅ Чат {chat_id} переименован в '{clean_title}'")
+    else:
+        logger.error(f"❌ Ошибка БД при переименовании чата {chat_id}")
+
+    return success

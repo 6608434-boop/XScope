@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/__init__.py
+НАЗНАЧЕНИЕ: Главный сборщик всех утилит проекта
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл объединяет все утилиты из подпапок и делает их доступными
+    через один импорт. Это удобно для частого использования.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils import get_db_connection, login_required, validate_chat_title
+
+    # Или можно импортировать подмодули
+    from utils.db import execute_dict
+    from utils.decorators import admin_required
+
+СТРУКТУРА:
+    utils/
+    ├── db/          # работа с базой данных
+    ├── decorators/   # декораторы для маршрутов
+    ├── validators/   # валидация данных
+    ├── formatters/   # форматирование (даты, текст)
+    └── security/     # безопасность (пароли, 2FA)
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+# ===== Импорты из db =====
+from utils.db import (
+    get_db_connection,
+    test_connection,
+    get_db_connection_with_timeout,
+    get_dict_cursor,
+    get_namedtuple_cursor,
+    execute_dict,
+    execute_dict_one,
+    execute_insert,
+)
+
+# ===== Импорты из decorators =====
+from utils.decorators import (
+    login_required,
+    admin_required,
+    get_current_user_id,
+    request_wants_json,
+)
+
+# ===== Импорты из validators =====
+from utils.validators import (
+    validate_chat_title,
+    is_chat_title_valid,
+    sanitize_chat_title,
+    get_title_validation_error,
+    MIN_TITLE_LENGTH,
+    MAX_TITLE_LENGTH,
+)
+
+# ===== Импорты из formatters =====
+from utils.formatters import (
+    format_datetime,
+    format_date_ru,
+    format_datetime_ru,
+    format_time_ago,
+    format_for_chat_list,
+    parse_date,
+)
+
+# ===== Импорты из security =====
+from utils.security import (
+    hash_password,
+    check_password,
+    generate_salt,
+    hash_with_salt,
+    verify_with_salt,
+    generate_api_key,
+)
+
+# ===== Версия модуля =====
+__version__ = '1.0.0'
+
+# ===== Все доступные имена =====
+__all__ = [
+    # db
+    'get_db_connection',
+    'test_connection',
+    'get_db_connection_with_timeout',
+    'get_dict_cursor',
+    'get_namedtuple_cursor',
+    'execute_dict',
+    'execute_dict_one',
+    'execute_insert',
+
+    # decorators
+    'login_required',
+    'admin_required',
+    'get_current_user_id',
+    'request_wants_json',
+
+    # validators
+    'validate_chat_title',
+    'is_chat_title_valid',
+    'sanitize_chat_title',
+    'get_title_validation_error',
+    'MIN_TITLE_LENGTH',
+    'MAX_TITLE_LENGTH',
+
+    # formatters
+    'format_datetime',
+    'format_date_ru',
+    'format_datetime_ru',
+    'format_time_ago',
+    'format_for_chat_list',
+    'parse_date',
+
+    # security
+    'hash_password',
+    'check_password',
+    'generate_salt',
+    'hash_with_salt',
+    'verify_with_salt',
+    'generate_api_key',
+]

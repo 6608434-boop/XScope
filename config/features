@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/features.py
+НАЗНАЧЕНИЕ: Флаги функций (feature flags) приложения
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл содержит флаги для включения/отключения отдельных функций.
+    Позволяет:
+    - Включать/отключать новых ботов без изменения кода
+    - Делать A/B тестирование
+    - Постепенно выкатывать новые функции
+    - Быстро отключать проблемные функции
+
+ИСПОЛЬЗОВАНИЕ:
+    from config.features import FeatureConfig
+
+    if FeatureConfig.ENABLE_WILL:
+        # Показываем профиль Уилла в интерфейсе
+
+    if FeatureConfig.MAINTENANCE_MODE:
+        return "Сайт на обслуживании", 503
+
+ПАРАМЕТРЫ:
+    ENABLE_2FA - включение двухфакторной аутентификации
+    ENABLE_TELEGRAM - включение Telegram интеграции
+    ENABLE_GOOGLE_SHEETS - включение Google Sheets
+    ENABLE_* - флаги для каждого профиля бота
+    MAINTENANCE_MODE - режим обслуживания
+    DEBUG_FEATURES - включение отладочных функций
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+from typing import List, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class FeatureConfig:
+    """
+    Флаги функций приложения.
+
+    Все флаги загружаются из переменных окружения.
+    По умолчанию большинство функций включены (True).
+    """
+
+    # ===== Основные функции =====
+    # Двухфакторная аутентификация
+    ENABLE_2FA = os.environ.get('ENABLE_2FA', 'True').lower() == 'true'
+
+    # Telegram интеграция (боты, уведомления)
+    ENABLE_TELEGRAM = os.environ.get('ENABLE_TELEGRAM', 'False').lower() == 'true'
+
+    # Google Sheets интеграция (для будущего)
+    ENABLE_GOOGLE_SHEETS = os.environ.get('ENABLE_GOOGLE_SHEETS', 'False').lower() == 'true'
+
+    # ===== AI функции =====
+    # Основной AI функционал
+    ENABLE_DEEPSEEK = os.environ.get('ENABLE_DEEPSEEK', 'True').lower() == 'true'
+
+    # Стриминг ответов (постепенная выдача текста)
+    ENABLE_STREAMING = os.environ.get('ENABLE_STREAMING', 'False').lower() == 'true'
+
+    # Сохранение истории сообщений
+    ENABLE_HISTORY = os.environ.get('ENABLE_HISTORY', 'True').lower() == 'true'
+
+    # ===== Профили ботов =====
+    # Каждого бота можно включить/отключить отдельно
+    # Это позволяет тестировать новых ботов на ограниченной аудитории
+
+    # Twitter-стратег
+    ENABLE_OLIVER = os.environ.get('ENABLE_OLIVER', 'True').lower() == 'true'
+
+    # Python-инженер
+    ENABLE_ISAAC = os.environ.get('ENABLE_ISAAC', 'True').lower() == 'true'
+
+    # Яндекс.Директ
+    ENABLE_ARSENIY = os.environ.get('ENABLE_ARSENIY', 'True').lower() == 'true'
+
+    # Google Ads
+    ENABLE_VICTOR = os.environ.get('ENABLE_VICTOR', 'True').lower() == 'true'
+
+    # Друг и ментор
+    ENABLE_MARK = os.environ.get('ENABLE_MARK', 'True').lower() == 'true'
+
+    # Telegram
+    ENABLE_TEO = os.environ.get('ENABLE_TEO', 'True').lower() == 'true'
+
+    # Приложения знакомств
+    ENABLE_ADAM = os.environ.get('ENABLE_ADAM', 'True').lower() == 'true'
+
+    # iOS разработчик
+    ENABLE_STEVE = os.environ.get('ENABLE_STEVE', 'True').lower() == 'true'
+
+    # Уилл Купер (английский язык)
+    ENABLE_WILL = os.environ.get('ENABLE_WILL', 'True').lower() == 'true'
+
+    # Поул Купер (продакт-менеджмент)
+    ENABLE_PAUL = os.environ.get('ENABLE_PAUL', 'True').lower() == 'true'
+
+    # ===== Режимы работы =====
+    # Режим обслуживания (сайт не работает)
+    MAINTENANCE_MODE = os.environ.get('MAINTENANCE_MODE', 'False').lower() == 'true'
+
+    # Сообщение для режима обслуживания
+    MAINTENANCE_MESSAGE = os.environ.get(
+        'MAINTENANCE_MESSAGE',
+        '🚧 Ведутся технические работы. Скоро вернемся!'
+    )
+
+    # Режим отладки (включает дополнительные логи)
+    DEBUG_FEATURES = os.environ.get('DEBUG_FEATURES', 'False').lower() == 'true'
+
+    # ===== Экспериментальные функции =====
+    # Для A/B тестирования
+    EXPERIMENTAL_CHAT_UI = os.environ.get('EXPERIMENTAL_CHAT_UI', 'False').lower() == 'true'
+    EXPERIMENTAL_ANALYTICS = os.environ.get('EXPERIMENTAL_ANALYTICS', 'False').lower() == 'true'
+
+    @classmethod
+    def get_enabled_profiles(cls) -> List[str]:
+        """
+        Возвращает список ID включенных профилей.
+
+        Returns:
+            List[str]: Список bot_id для отображения в интерфейсе
+        """
+        enabled = []
+
+        # Словарь всех профилей и их флагов
+        profiles = [
+            ('oliver', cls.ENABLE_OLIVER),
+            ('isaac', cls.ENABLE_ISAAC),
+            ('arseniy', cls.ENABLE_ARSENIY),
+            ('victor', cls.ENABLE_VICTOR),
+            ('mark', cls.ENABLE_MARK),
+            ('teo', cls.ENABLE_TEO),
+            ('adam', cls.ENABLE_ADAM),
+            ('steve', cls.ENABLE_STEVE),
+            ('will', cls.ENABLE_WILL),
+            ('paul', cls.ENABLE_PAUL),
+        ]
+
+        for profile_id, enabled_flag in profiles:
+            if enabled_flag:
+                enabled.append(profile_id)
+
+        logger.debug(f"Включенные профили: {', '.join(enabled)}")
+        return enabled
+    @classmethod
+    def get_all_flags(cls) -> Dict[str, bool]:
+        """
+        Возвращает словарь со всеми флагами.
+
+        Returns:
+            Dict[str, bool]: Все флаги и их значения
+
+        Пример:
+            flags = FeatureConfig.get_all_flags()
+            if flags['ENABLE_WILL']:
+                print("Уилл доступен")
+        """
+        return {
+            key: value for key, value in cls.__dict__.items()
+            if key.startswith('ENABLE_') or key.startswith('EXPERIMENTAL_')
+            and not key.startswith('_')  # пропускаем приватные атрибуты
+        }
+
+    @classmethod
+    def check_maintenance(cls) -> bool:
+        """
+        Проверяет, включен ли режим обслуживания.
+
+        Returns:
+            bool: True если сайт на обслуживании
+
+        Пример:
+            if FeatureConfig.check_maintenance():
+                return "Maintenance", 503
+        """
+        if cls.MAINTENANCE_MODE:
+            logger.warning(f"Сайт на обслуживании: {cls.MAINTENANCE_MESSAGE}")
+            return True
+        return False
+
+    @classmethod
+    def is_profile_enabled(cls, bot_id: str) -> bool:
+        """
+        Проверяет, включен ли конкретный профиль.
+
+        Args:
+            bot_id (str): Идентификатор бота ('oliver', 'will', ...)
+
+        Returns:
+            bool: True если профиль включен
+
+        Пример:
+            if FeatureConfig.is_profile_enabled('will'):
+                # Показываем Уилла
+        """
+        flag_name = f"ENABLE_{bot_id.upper()}"
+        return getattr(cls, flag_name, False)
+
+    @classmethod
+    def get_feature_status(cls) -> Dict[str, Any]:
+        """
+        Возвращает статус всех функций для отладки.
+
+        Returns:
+            Dict[str, Any]: Статус функций и количество включенных
+        """
+        enabled_profiles = cls.get_enabled_profiles()
+
+        return {
+            'maintenance': cls.MAINTENANCE_MODE,
+            'maintenance_message': cls.MAINTENANCE_MESSAGE,
+            'enabled_profiles': enabled_profiles,
+            'profiles_count': len(enabled_profiles),
+            'total_profiles': 9,  # всего 9 профилей
+            'features': {
+                '2fa': cls.ENABLE_2FA,
+                'telegram': cls.ENABLE_TELEGRAM,
+                'google_sheets': cls.ENABLE_GOOGLE_SHEETS,
+                'deepseek': cls.ENABLE_DEEPSEEK,
+                'streaming': cls.ENABLE_STREAMING,
+                'history': cls.ENABLE_HISTORY,
+                'debug': cls.DEBUG_FEATURES,
+            },
+            'experimental': {
+                'chat_ui': cls.EXPERIMENTAL_CHAT_UI,
+                'analytics': cls.EXPERIMENTAL_ANALYTICS,
+            }
+        }

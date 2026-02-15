@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/user/authenticate.py
+НАЗНАЧЕНИЕ: Аутентификация пользователя
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Проверяет логин и пароль пользователя.
+    Возвращает данные пользователя при успешном входе.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.user.authenticate import authenticate_user
+
+    user = authenticate_user('username', 'password')
+    if user:
+        session['user_id'] = user['id']
+
+ФУНКЦИИ:
+    authenticate_user(username, password) - проверка логина/пароля
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import Optional, Dict, Any
+
+from models.user import User
+from utils.security import check_password
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
+    """
+    Аутентифицирует пользователя по имени и паролю.
+
+    Args:
+        username: Имя пользователя
+        password: Пароль
+
+    Returns:
+        Optional[Dict]: Данные пользователя если успешно, иначе None
+    """
+    logger.info(f"🔐 Попытка входа: {username}")
+
+    # 1. Ищем пользователя в БД
+    user = User.get_by_username(username)
+
+    if not user:
+        logger.warning(f"❌ Пользователь {username} не найден")
+        return None
+
+    # 2. Проверяем пароль
+    if not check_password(user['password_hash'], password):
+        logger.warning(f"❌ Неверный пароль для {username}")
+        return None
+
+    # 3. Убираем хеш пароля из результата
+    user_data = {
+        'id': user['id'],
+        'username': user['username'],
+        'twofa_enabled': user['twofa_enabled'],
+        'created_at': user['created_at']
+    }
+
+    logger.info(f"✅ Успешный вход: {username} (ID: {user['id']})")
+    return user_data
+
+
+def authenticate_with_2fa(username: str, password: str, twofa_code: str) -> Optional[Dict[str, Any]]:
+    """
+    Аутентификация с двухфакторной проверкой.
+
+    Args:
+        username: Имя пользователя
+        password: Пароль
+        twofa_code: Код из Google Authenticator
+
+    Returns:
+        Optional[Dict]: Данные пользователя если всё ок
+    """
+    # TODO: реализовать после добавления 2FA
+    logger.warning("2FA ещё не реализовано")
+    return None

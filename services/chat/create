@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/chat/create.py
+НАЗНАЧЕНИЕ: Создание нового чата
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Создаёт новый чат с проверками:
+    - Существует ли пользователь
+    - Существует ли профиль (если указан)
+    - Валидация названия
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.chat.create import create_chat
+
+    chat_id = create_chat(
+        user_id=1,
+        title="Мой чат",
+        bot_profile_id="will"
+    )
+
+ФУНКЦИИ:
+    create_chat(user_id, title, bot_profile_id) - создание чата
+    _validate_bot_profile(bot_profile_id) - проверка профиля
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import Optional
+
+from models.chat import Chat
+from models.user import User
+from models.profile import BotProfile
+from utils.validators import validate_chat_title, sanitize_chat_title
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _validate_bot_profile(bot_profile_id: Optional[str]) -> Optional[int]:
+    """
+    Проверяет существование профиля и возвращает его ID.
+
+    Args:
+        bot_profile_id: Строковый ID профиля ('will', 'oliver', ...)
+
+    Returns:
+        Optional[int]: Числовой ID профиля или None
+
+    Raises:
+        ValueError: Если профиль не найден
+    """
+    if not bot_profile_id:
+        return None
+
+    profile = BotProfile.get_by_bot_id(bot_profile_id)
+    if not profile:
+        error_msg = f"Профиль '{bot_profile_id}' не найден"
+        logger.error(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+
+    logger.debug(f"✅ Найден профиль {bot_profile_id} (ID: {profile['id']})")
+    return profile['id']
+
+
+def create_chat(user_id: int, title: str, bot_profile_id: Optional[str] = None) -> int:
+    """
+    Создаёт новый чат.
+
+    Args:
+        user_id: ID пользователя
+        title: Название чата
+        bot_profile_id: Строковый ID профиля (опционально)
+
+    Returns:
+        int: ID созданного чата
+
+    Raises:
+        ValueError: Если пользователь не найден
+        ValueError: Если профиль не найден
+        ValueError: Если название некорректно
+    """
+    logger.info(f"🚀 Создание нового чата для пользователя {user_id}")
+
+    # 1. Проверяем существование пользователя
+    user = User.get_by_id(user_id)
+    if not user:
+        error_msg = f"Пользователь {user_id} не найден"
+        logger.error(f"❌ {error_msg}")
+        raise ValueError(error_msg)
+
+    # 2. Валидируем название
+    try:
+        validate_chat_title(title)
+    except ValueError as e:
+        logger.error(f"❌ Некорректное название чата: {e}")
+        raise
+
+    # 3. Очищаем название от лишних пробелов
+    clean_title = sanitize_chat_title(title)
+    if clean_title != title:
+        logger.debug(f"Название очищено: '{title}' → '{clean_title}'")
+
+    # 4. Проверяем профиль (если указан)
+    db_profile_id = _validate_bot_profile(bot_profile_id)
+
+    # 5. Создаём чат
+    chat_id = Chat.create(user_id, clean_title, db_profile_id)
+
+    logger.info(f"✅ Чат {chat_id} создан для пользователя {user_id}")
+    return chat_id

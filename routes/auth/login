@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: routes/auth/login.py
+НАЗНАЧЕНИЕ: Страница входа и обработка логина
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    - GET /auth/login - показывает форму входа
+    - POST /auth/login - обрабатывает данные формы
+
+МАРШРУТ:
+    GET /auth/login
+    POST /auth/login
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from flask import render_template, request, redirect, url_for, session, flash
+from routes.auth import auth_bp
+from services.user import authenticate_user
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """
+    Страница входа.
+
+    GET: Показывает форму входа
+    POST: Проверяет логин/пароль и создаёт сессию
+    """
+    # Если пользователь уже авторизован - отправляем на главную
+    if 'user_id' in session:
+        logger.debug(f"Пользователь {session.get('user_id')} уже авторизован, редирект на главную")
+        return redirect(url_for('main.index'))
+
+    if request.method == 'POST':
+        # Обработка отправки формы
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        logger.info(f"🔐 Попытка входа: {username}")
+
+        if not username or not password:
+            flash('Заполните все поля', 'error')
+            return render_template('login.html')
+
+        # Аутентификация
+        user = authenticate_user(username, password)
+
+        if user:
+            # Успешный вход
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session.permanent = True
+
+            logger.info(f"✅ Успешный вход: {username} (ID: {user['id']})")
+            flash('Добро пожаловать!', 'success')
+
+            # Если есть 2FA - перенаправляем на проверку
+            if user.get('twofa_enabled'):
+                return redirect(url_for('auth.twofa'))
+
+            return redirect(url_for('main.index'))
+        else:
+            # Неудачная попытка
+            logger.warning(f"❌ Неудачная попытка входа: {username}")
+            flash('Неверное имя пользователя или пароль', 'error')
+
+    # GET запрос - показываем форму
+    return render_template('login.html')
+
+
+@auth_bp.route('/login/test', methods=['GET'])
+def test_login():
+    """
+    Временный маршрут для тестирования.
+    Создаёт тестовую сессию без проверки пароля.
+
+    TODO: Удалить перед продакшном!
+    """
+    logger.warning("⚠️ Использован тестовый вход!")
+    session['user_id'] = 1
+    session['username'] = 'test_user'
+    flash('Тестовый вход выполнен', 'info')
+    return redirect(url_for('main.index'))

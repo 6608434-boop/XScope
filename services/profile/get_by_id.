@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/profile/get_by_id.py
+НАЗНАЧЕНИЕ: Получение профиля по ID
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Возвращает профиль по строковому или числовому ID.
+    Может включать полный промпт и правила.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.profile.get_by_id import get_profile_by_id, get_profile_with_prompt
+
+    # По строковому ID
+    profile = get_profile_by_id('will')
+
+    # С полным промптом и правилами
+    full_profile = get_profile_with_prompt(1)
+
+ФУНКЦИИ:
+    get_profile_by_id(profile_id) - профиль по строковому ID
+    get_profile_by_db_id(db_id) - профиль по числовому ID
+    get_profile_with_prompt(profile_id) - с промптом и правилами
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import Optional, Dict, Any, Union
+
+from models.profile import BotProfile
+from models.rule import ProfileRule
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def get_profile_by_id(profile_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Получает профиль по строковому ID ('will', 'oliver', ...).
+
+    Args:
+        profile_id: Строковый ID профиля
+
+    Returns:
+        Optional[Dict]: Данные профиля или None
+    """
+    logger.info(f"🔍 Поиск профиля по ID: {profile_id}")
+
+    profile = BotProfile.get_by_bot_id(profile_id)
+
+    if profile:
+        logger.debug(f"✅ Профиль {profile_id} найден (ID в БД: {profile['id']})")
+    else:
+        logger.warning(f"❌ Профиль {profile_id} не найден")
+
+    return profile
+
+
+def get_profile_by_db_id(db_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Получает профиль по числовому ID из БД.
+
+    Args:
+        db_id: Числовой ID профиля
+
+    Returns:
+        Optional[Dict]: Данные профиля или None
+    """
+    logger.info(f"🔍 Поиск профиля по DB ID: {db_id}")
+
+    profile = BotProfile.get_by_id(db_id)
+
+    if profile:
+        logger.debug(f"✅ Профиль {profile['bot_id']} найден")
+    else:
+        logger.warning(f"❌ Профиль с ID {db_id} не найден")
+
+    return profile
+
+
+def get_profile_with_prompt(profile_id: Union[str, int]) -> Optional[Dict[str, Any]]:
+    """
+    Получает профиль с полным промптом и правилами.
+
+    Args:
+        profile_id: Строковый или числовой ID
+
+    Returns:
+        Optional[Dict]: Профиль с system_prompt и правилами
+    """
+    # Определяем тип ID и получаем профиль
+    if isinstance(profile_id, str):
+        profile = get_profile_by_id(profile_id)
+    else:
+        profile = get_profile_by_db_id(profile_id)
+
+    if not profile:
+        return None
+
+    # Добавляем правила
+    rules = ProfileRule.get_for_profile(profile['id'])
+    if rules:
+        profile['rules'] = rules
+        logger.debug(f"📋 Добавлено {len(rules)} правил для профиля {profile['bot_id']}")
+
+    return profile
+
+
+def get_profile_id_mapping() -> Dict[str, int]:
+    """
+    Возвращает словарь для преобразования строковых ID в числовые.
+
+    Returns:
+        Dict[str, int]: {'oliver': 1, 'will': 2, ...}
+    """
+    profiles = BotProfile.get_all()
+
+    mapping = {}
+    for p in profiles:
+        mapping[p['bot_id']] = p['id']
+
+    logger.debug(f"🗺️ Создано mapping для {len(mapping)} профилей")
+    return mapping

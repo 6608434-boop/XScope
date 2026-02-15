@@ -1,0 +1,156 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/db/connection.py
+НАЗНАЧЕНИЕ: Подключение к базе данных
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Функции для подключения к PostgreSQL.
+    Использует настройки из config.database.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.db.connection import get_db_connection
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users")
+    cur.close()
+    conn.close()
+
+ФУНКЦИИ:
+    get_db_connection() - возвращает подключение к БД
+    test_connection() - проверяет работоспособность
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import psycopg2
+from psycopg2 import sql
+import logging
+from typing import Optional
+
+from config import config
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+def get_db_connection():
+    """
+    Создает подключение к базе данных PostgreSQL.
+
+    Использует DATABASE_URL из конфигурации.
+    Автоматически добавляет SSL параметры если нужно.
+
+    Returns:
+        connection: Объект подключения psycopg2
+
+    Raises:
+        Exception: Если подключение не удалось
+
+    Пример:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # работа с БД
+        cur.close()
+        conn.close()
+    """
+    # Получаем URL из конфига (с добавленным SSL если нужно)
+    database_url = config.database_url_with_ssl
+
+    if not database_url:
+        error_msg = "DATABASE_URL не задан в конфигурации"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    try:
+        # Пытаемся подключиться
+        conn = psycopg2.connect(database_url)
+        logger.debug("✅ Подключение к БД установлено")
+        return conn
+
+    except psycopg2.OperationalError as e:
+        logger.error(f"❌ Ошибка подключения к БД (операционная): {e}")
+        raise
+
+    except psycopg2.InterfaceError as e:
+        logger.error(f"❌ Ошибка интерфейса БД: {e}")
+        raise
+
+    except Exception as e:
+        logger.error(f"❌ Неизвестная ошибка БД: {e}")
+        raise
+
+
+def test_connection() -> bool:
+    """
+    Проверяет работоспособность подключения к БД.
+
+    Пытается выполнить простой запрос SELECT 1.
+
+    Returns:
+        bool: True если подключение работает, иначе False
+
+    Пример:
+        if test_connection():
+            print("✅ БД работает")
+        else:
+            print("❌ БД не отвечает")
+    """
+    conn = None
+    cur = None
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        result = cur.fetchone()
+
+        if result and result[0] == 1:
+            logger.info("✅ Тест подключения к БД успешен")
+            return True
+        else:
+            logger.warning("⚠️ Тест подключения дал неожиданный результат")
+            return False
+
+    except Exception as e:
+        logger.error(f"❌ Тест подключения провален: {e}")
+        return False
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def get_db_connection_with_timeout(timeout: int = 10):
+    """
+    Создает подключение с указанным таймаутом.
+
+    Args:
+        timeout (int): Таймаут подключения в секундах
+
+    Returns:
+        connection: Объект подключения
+
+    Пример:
+        conn = get_db_connection_with_timeout(5)
+    """
+    database_url = config.database_url_with_ssl
+
+    if not database_url:
+        raise ValueError("DATABASE_URL не задан")
+
+    try:
+        conn = psycopg2.connect(database_url, connect_timeout=timeout)
+        logger.debug(f"✅ Подключение к БД с таймаутом {timeout}с")
+        return conn
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения с таймаутом {timeout}с: {e}")
+        raise

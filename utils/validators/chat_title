@@ -1,0 +1,171 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/validators/chat_title.py
+НАЗНАЧЕНИЕ: Валидация названия чата
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Функции для проверки корректности названия чата.
+    Название не должно быть пустым и не должно превышать лимит.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.validators.chat_title import validate_chat_title
+
+    try:
+        validate_chat_title("Мой новый чат")
+    except ValueError as e:
+        print(f"Ошибка: {e}")
+
+ФУНКЦИИ:
+    validate_chat_title(title) - проверяет название, кидает исключение
+    is_chat_title_valid(title) - возвращает True/False без исключений
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import re
+from typing import Tuple, Optional
+
+
+# Константы для валидации
+MIN_TITLE_LENGTH = 1
+MAX_TITLE_LENGTH = 200
+ALLOWED_CHARS = r'^[a-zA-Zа-яА-Я0-9\s\-_!?,.()]+$'
+
+
+def validate_chat_title(title: str) -> bool:
+    """
+    Проверяет корректность названия чата.
+
+    Правила:
+    - Не может быть пустым
+    - Не длиннее MAX_TITLE_LENGTH символов
+    - Не короче MIN_TITLE_LENGTH символов
+    - Не содержит только пробелы
+
+    Args:
+        title (str): Название чата для проверки
+
+    Returns:
+        bool: True если название корректно
+
+    Raises:
+        ValueError: Если название не проходит валидацию
+
+    Пример:
+        validate_chat_title("Мой чат")  # OK
+        validate_chat_title("")  # ValueError
+    """
+    # Проверка на None
+    if title is None:
+        raise ValueError("Название чата не может быть None")
+
+    # Проверка на пустую строку
+    if not title:
+        raise ValueError("Название чата не может быть пустым")
+
+    # Проверка на строку из пробелов
+    if title.isspace():
+        raise ValueError("Название чата не может состоять только из пробелов")
+
+    # Проверка минимальной длины
+    if len(title) < MIN_TITLE_LENGTH:
+        raise ValueError(f"Название чата слишком короткое (мин. {MIN_TITLE_LENGTH} символ)")
+
+    # Проверка максимальной длины
+    if len(title) > MAX_TITLE_LENGTH:
+        raise ValueError(f"Название чата слишком длинное (макс. {MAX_TITLE_LENGTH} символов)")
+
+    # Дополнительная проверка на допустимые символы (опционально)
+    # if not re.match(ALLOWED_CHARS, title):
+    #     raise ValueError("Название содержит недопустимые символы")
+
+    return True
+
+
+def is_chat_title_valid(title: str) -> bool:
+    """
+    Проверяет название чата без исключений.
+
+    Удобно для использования в условиях.
+
+    Args:
+        title (str): Название чата
+
+    Returns:
+        bool: True если название корректно, иначе False
+
+    Пример:
+        if is_chat_title_valid(user_input):
+            create_chat(user_input)
+        else:
+            show_error()
+    """
+    try:
+        return validate_chat_title(title)
+    except ValueError:
+        return False
+
+
+def sanitize_chat_title(title: str) -> str:
+    """
+    Очищает название чата от опасных символов.
+
+    Удаляет лишние пробелы, обрезает длину.
+
+    Args:
+        title (str): Исходное название
+
+    Returns:
+        str: Очищенное название
+
+    Пример:
+        title = sanitize_chat_title("  Мой   чат  ")
+        print(title)  # "Мой чат"
+    """
+    if not title:
+        return ""
+
+    # Убираем лишние пробелы в начале и конце
+    cleaned = title.strip()
+
+    # Заменяем множественные пробелы на один
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+
+    # Обрезаем до максимальной длины
+    if len(cleaned) > MAX_TITLE_LENGTH:
+        cleaned = cleaned[:MAX_TITLE_LENGTH]
+
+    return cleaned
+
+
+def get_title_validation_error(title: str) -> Optional[str]:
+    """
+    Возвращает сообщение об ошибке валидации или None.
+
+    Удобно для отображения ошибок в интерфейсе.
+
+    Args:
+        title (str): Название чата
+
+    Returns:
+        Optional[str]: Текст ошибки или None если всё ок
+
+    Пример:
+        error = get_title_validation_error(user_input)
+        if error:
+            flash(error)
+        else:
+            create_chat(user_input)
+    """
+    try:
+        validate_chat_title(title)
+        return None
+    except ValueError as e:
+        return str(e)

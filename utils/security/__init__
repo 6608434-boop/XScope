@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/security/__init__.py
+НАЗНАЧЕНИЕ: Экспорт функций безопасности
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все функции безопасности через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.security import hash_password, check_password, generate_api_key
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from utils.security.hash import (
+    hash_password,
+    check_password,
+    generate_salt,
+    hash_with_salt,
+    verify_with_salt,
+    generate_api_key,
+)
+
+__all__ = [
+    'hash_password',
+    'check_password',
+    'generate_salt',
+    'hash_with_salt',
+    'verify_with_salt',
+    'generate_api_key',
+]

@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/ai/__init__.py
+НАЗНАЧЕНИЕ: Экспорт AI сервисов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все сервисы для работы с AI через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.ai import call_deepseek, build_system_prompt
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from services.ai.call_deepseek import call_deepseek
+from services.ai.build_prompt import build_system_prompt
+
+__all__ = [
+    'call_deepseek',
+    'build_system_prompt',
+]

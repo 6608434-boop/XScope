@@ -1,0 +1,176 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/ai/call_deepseek.py
+НАЗНАЧЕНИЕ: Вызов DeepSeek API
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Отправляет запрос к DeepSeek API и возвращает ответ.
+    Содержит обработку ошибок и повторные попытки.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.ai.call_deepseek import call_deepseek
+
+    response = call_deepseek(history, message, system_prompt)
+
+ФУНКЦИИ:
+    call_deepseek(history, message, system_prompt) - вызов API
+    _make_api_request(messages) - непосредственно запрос к API
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import time
+import logging
+from typing import List, Tuple, Optional
+import requests
+
+from config.api_keys import APIConfig
+from services.ai.build_prompt import build_messages_for_ai
+
+logger = logging.getLogger(__name__)
+
+
+class DeepSeekAPIError(Exception):
+    """Ошибка при вызове DeepSeek API"""
+    pass
+
+
+def _make_api_request(messages: List[dict], retry_count: int = 3) -> Optional[str]:
+    """
+    Отправляет запрос к DeepSeek API с повторными попытками.
+
+    Args:
+        messages: Список сообщений для отправки
+        retry_count: Количество повторных попыток
+
+    Returns:
+        Optional[str]: Текст ответа или None
+
+    Raises:
+        DeepSeekAPIError: Если API недоступен после всех попыток
+    """
+    if not APIConfig.check_deepseek():
+        logger.error("❌ DeepSeek API ключ не настроен")
+        return "DeepSeek API не настроен. Пожалуйста, добавьте DEEPSEEK_API_KEY в .env"
+
+    headers = {
+        "Authorization": f"Bearer {APIConfig.DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": APIConfig.DEEPSEEK_MODEL,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": APIConfig.DEEPSEEK_MAX_TOKENS
+    }
+
+    for attempt in range(retry_count):
+        try:
+            logger.debug(f"📤 Отправка запроса к DeepSeek (попытка {attempt + 1})")
+
+            response = requests.post(
+                f"{APIConfig.DEEPSEEK_API_URL}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=APIConfig.DEEPSEEK_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                reply = result['choices'][0]['message']['content']
+                logger.info(f"✅ Получен ответ от DeepSeek ({len(reply)} символов)")
+                return reply
+
+            elif response.status_code == 401:
+                logger.error("❌ Неверный API ключ DeepSeek")
+                return "Ошибка авторизации DeepSeek API. Проверьте API ключ."
+
+            elif response.status_code == 429:
+                logger.warning(f"⚠️ Превышен лимит запросов, попытка {attempt + 1}")
+                if attempt < retry_count - 1:
+                    time.sleep(2 ** attempt)  # экспоненциальная задержка
+                    continue
+
+            else:
+                logger.error(f"❌ Ошибка DeepSeek API: {response.status_code} - {response.text}")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"⏱️ Таймаут запроса, попытка {attempt + 1}")
+            if attempt < retry_count - 1:
+                time.sleep(1)
+                continue
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"🔌 Ошибка соединения, попытка {attempt + 1}")
+            if attempt < retry_count - 1:
+                time.sleep(2)
+                continue
+
+        except Exception as e:
+            logger.error(f"❌ Неожиданная ошибка: {e}")
+            if attempt < retry_count - 1:
+                time.sleep(1)
+                continue
+
+    error_msg = "DeepSeek API недоступен после нескольких попыток"
+    logger.error(f"❌ {error_msg}")
+    return f"Извините, сервис временно недоступен. Пожалуйста, попробуйте позже."
+
+
+def call_deepseek(
+    history: List[Tuple[str, str]],
+    message: str,
+    system_prompt: Optional[str] = None
+) -> str:
+    """
+    Вызывает DeepSeek API и возвращает ответ.
+
+    Args:
+        history: История сообщений [(role, content), ...]
+        message: Текущее сообщение пользователя
+        system_prompt: Системный промпт (опционально)
+
+    Returns:
+        str: Ответ от AI
+    """
+    logger.info("🤖 Вызов DeepSeek API")
+
+    # 1. Строим сообщения для отправки
+    messages = build_messages_for_ai(history, message, system_prompt)
+
+    # 2. Отправляем запрос
+    reply = _make_api_request(messages)
+
+    if reply is None:
+        reply = "Извините, не удалось получить ответ от AI. Попробуйте позже."
+
+    return reply
+
+
+def call_deepseek_stream(
+    history: List[Tuple[str, str]],
+    message: str,
+    system_prompt: Optional[str] = None
+):
+    """
+    Стриминговая версия вызова DeepSeek API.
+
+    Args:
+        history: История сообщений
+        message: Текущее сообщение
+        system_prompt: Системный промпт
+
+    Yields:
+        str: Части ответа по мере поступления
+    """
+    # TODO: реализовать стриминг, когда понадобится
+    logger.warning("Стриминг DeepSeek ещё не реализован")
+    yield call_deepseek(history, message, system_prompt)

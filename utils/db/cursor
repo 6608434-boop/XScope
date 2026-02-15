@@ -1,0 +1,200 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: utils/db/cursor.py
+НАЗНАЧЕНИЕ: Утилиты для работы с курсорами БД
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Функции для создания курсоров и работы с результатами запросов.
+    Включает поддержку словарей вместо кортежей для удобства.
+
+ИСПОЛЬЗОВАНИЕ:
+    from utils.db.cursor import get_dict_cursor, execute_dict
+
+    conn = get_db_connection()
+    cur = get_dict_cursor(conn)
+    cur.execute("SELECT * FROM users")
+    user = cur.fetchone()  # вернет словарь {'id': 1, 'username': '...'}
+
+ФУНКЦИИ:
+    get_dict_cursor() - курсор, возвращающий словари
+    execute_dict() - выполнить запрос и сразу получить результат
+    fetch_all_dict() - получить все строки как словари
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import logging
+from typing import Dict, List, Any, Optional, Union
+
+import psycopg2
+from psycopg2.extras import RealDictCursor, NamedTupleCursor
+from psycopg2 import sql
+
+from utils.db.connection import get_db_connection
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+def get_dict_cursor(conn):
+    """
+    Возвращает курсор, возвращающий результаты как словари.
+
+    Это самый удобный формат для API и JSON ответов.
+
+    Args:
+        conn: Подключение к БД (из get_db_connection())
+
+    Returns:
+        cursor: Курсор с RealDictCursor
+
+    Пример:
+        conn = get_db_connection()
+        cur = get_dict_cursor(conn)
+        cur.execute("SELECT id, username FROM users")
+        user = cur.fetchone()  # {'id': 1, 'username': 'sommelier'}
+        cur.close()
+        conn.close()
+    """
+    return conn.cursor(cursor_factory=RealDictCursor)
+
+
+def get_namedtuple_cursor(conn):
+    """
+    Возвращает курсор, возвращающий результаты как namedtuple.
+
+    Позволяет обращаться к полям через точку: row.id, row.username.
+
+    Args:
+        conn: Подключение к БД
+
+    Returns:
+        cursor: Курсор с NamedTupleCursor
+    """
+    return conn.cursor(cursor_factory=NamedTupleCursor)
+
+
+def execute_dict(conn, query: str, params: tuple = None) -> List[Dict[str, Any]]:
+    """
+    Выполняет запрос и сразу возвращает все результаты как список словарей.
+
+    Удобно для простых запросов, когда не нужно держать курсор открытым.
+
+    Args:
+        conn: Подключение к БД
+        query (str): SQL запрос
+        params (tuple): Параметры запроса (для WHERE, VALUES)
+
+    Returns:
+        List[Dict]: Список строк-словарей
+
+    Пример:
+        conn = get_db_connection()
+        users = execute_dict(conn, "SELECT * FROM users WHERE id > %s", (5,))
+        for user in users:
+            print(user['username'])
+        conn.close()
+    """
+    cur = get_dict_cursor(conn)
+
+    try:
+        if params:
+            cur.execute(query, params)
+        else:
+            cur.execute(query)
+
+        result = cur.fetchall()
+        logger.debug(f"Запрос выполнен, получено {len(result)} строк")
+        return result
+
+    except Exception as e:
+        logger.error(f"Ошибка выполнения запроса: {e}")
+        raise
+
+    finally:
+        cur.close()
+
+
+def execute_dict_one(conn, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
+    """
+    Выполняет запрос и возвращает одну строку как словарь.
+
+    Удобно для запросов, которые должны вернуть только одну запись.
+
+    Args:
+        conn: Подключение к БД
+        query (str): SQL запрос
+        params (tuple): Параметры запроса
+
+    Returns:
+        Optional[Dict]: Словарь с данными или None если ничего не найдено
+
+    Пример:
+        conn = get_db_connection()
+        user = execute_dict_one(conn, "SELECT * FROM users WHERE id = %s", (1,))
+        if user:
+            print(user['username'])
+        conn.close()
+    """
+    results = execute_dict(conn, query, params)
+
+    if not results:
+        return None
+
+    if len(results) > 1:
+        logger.warning(f"Запрос вернул {len(results)} строк, ожидалась одна")
+
+    return results[0]
+
+
+def execute_insert(conn, table: str, data: Dict[str, Any]) -> int:
+    """
+    Упрощенная вставка данных в таблицу.
+
+    Args:
+        conn: Подключение к БД
+        table (str): Имя таблицы
+        data (Dict): Словарь {поле: значение}
+
+    Returns:
+        int: ID созданной записи
+
+    Пример:
+        conn = get_db_connection()
+        user_id = execute_insert(conn, 'users', {
+            'username': 'newuser',
+            'password_hash': 'hash123'
+        })
+        conn.commit()
+    """
+    columns = data.keys()
+    values = [data[col] for col in columns]
+
+    # Формируем запрос: INSERT INTO table (col1, col2) VALUES (%s, %s) RETURNING id
+    query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING id").format(
+        sql.Identifier(table),
+        sql.SQL(', ').join(map(sql.Identifier, columns)),
+        sql.SQL(', ').join(sql.Placeholder() * len(columns))
+    )
+
+    cur = conn.cursor()
+
+    try:
+        cur.execute(query, values)
+        inserted_id = cur.fetchone()[0]
+        logger.debug(f"Вставлена запись в {table} с ID {inserted_id}")
+        return inserted_id
+
+    except Exception as e:
+        logger.error(f"Ошибка вставки в {table}: {e}")
+        raise
+
+    finally:
+        cur.close()

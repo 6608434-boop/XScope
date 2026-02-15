@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: core/cli/load_profiles.py
+НАЗНАЧЕНИЕ: CLI команда для загрузки профилей ботов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-15
+
+ОПИСАНИЕ:
+    Команда для Flask CLI: flask load-profiles
+    Загружает все профили из папки prompts/ в базу данных.
+
+ИСПОЛЬЗОВАНИЕ:
+    flask load-profiles
+    flask load-profiles --bot will  # загрузить только одного
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-15 - Oliver - создание
+================================================================================
+"""
+
+import click
+from flask.cli import with_appcontext
+import logging
+
+from core.profiles.loader import load_profiles, reload_profile
+
+logger = logging.getLogger(__name__)
+
+
+@click.command('load-profiles')
+@click.option('--bot', '-b', help='Загрузить только конкретного бота (например --bot will)')
+@click.option('--dir', 'prompts_dir', default='prompts', help='Папка с промптами (по умолчанию prompts)')
+@with_appcontext
+def load_profiles_command(bot, prompts_dir):
+    """
+    Загружает профили ботов из текстовых файлов.
+
+    Примеры:
+        flask load-profiles              # загрузить всех
+        flask load-profiles --bot will   # загрузить только Уилла
+        flask load-profiles --dir custom_prompts
+    """
+    if bot:
+        click.echo(f"🤖 Загрузка профиля {bot}...")
+
+        try:
+            success = reload_profile(bot)
+            if success:
+                click.echo(f"✅ Профиль {bot} успешно загружен!")
+            else:
+                click.echo(f"❌ Ошибка загрузки профиля {bot}", err=True)
+        except Exception as e:
+            click.echo(f"❌ Ошибка: {e}", err=True)
+
+    else:
+        click.echo(f"📂 Загрузка всех профилей из {prompts_dir}/...")
+
+        try:
+            stats = load_profiles(prompts_dir)
+
+            click.echo(f"\n📊 Результаты:")
+            click.echo(f"   Всего файлов: {stats['total']}")
+            click.echo(f"   ✅ Загружено: {stats['loaded']}")
+
+            if stats['failed']:
+                click.echo(f"   ❌ Ошибок: {stats['failed']}")
+            if stats['skipped']:
+                click.echo(f"   ⚠️ Пропущено: {stats['skipped']}")
+
+            if stats['loaded'] > 0:
+                click.echo(f"\n✅ Профили успешно загружены в БД!")
+            else:
+                click.echo(f"\n⚠️ Ни одного профиля не загружено")
+
+        except Exception as e:
+            click.echo(f"❌ Ошибка: {e}", err=True)
+
+
+@click.command('list-profiles')
+@with_appcontext
+def list_profiles_command():
+    """
+    Показывает список всех профилей в базе данных.
+
+    Пример:
+        flask list-profiles
+    """
+    from models.profile import BotProfile
+
+    click.echo("📋 Список профилей в БД:")
+
+    profiles = BotProfile.get_all()
+
+    if not profiles:
+        click.echo("   Профили не найдены")
+        return
+
+    for p in profiles:
+        click.echo(f"   {p['avatar']} {p['bot_name']} ({p['bot_id']})")
+
+    click.echo(f"\n   Всего: {len(profiles)} профилей")

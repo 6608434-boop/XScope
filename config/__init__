@@ -1,0 +1,180 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/__init__.py
+НАЗНАЧЕНИЕ: Сборка всех конфигураций в единый объект
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл импортирует все секции конфигурации и объединяет их
+    в единый класс Config. Также определяет, какое окружение использовать
+    (development/production/testing) на основе переменной FLASK_ENV.
+
+ИСПОЛЬЗОВАНИЕ:
+    from config import config
+
+    # Получить любой параметр
+    db_url = config.DATABASE_URL
+    secret = config.SECRET_KEY
+
+    # Проверить окружение
+    if config.IS_DEVELOPMENT:
+        # делаем что-то для разработки
+
+ПАРАМЕТРЫ:
+    FLASK_ENV - текущее окружение (development/production/testing)
+    IS_DEVELOPMENT - True если разработка
+    IS_PRODUCTION - True если продакшн
+    IS_TESTING - True если тестирование
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+import logging
+from typing import Optional, Type
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+# ===== Импортируем все секции конфигурации =====
+from config.base import BaseConfig
+from config.database import DatabaseConfig
+from config.api_keys import APIConfig
+from config.security import SecurityConfig
+from config.features import FeatureConfig
+
+# ===== Импортируем конфигурации окружений =====
+try:
+    from config.environments.development import DevelopmentConfig
+except ImportError:
+    DevelopmentConfig = None
+    logger.debug("DevelopmentConfig не найден")
+
+try:
+    from config.environments.production import ProductionConfig
+except ImportError:
+    ProductionConfig = None
+    logger.debug("ProductionConfig не найден")
+
+try:
+    from config.environments.testing import TestingConfig
+except ImportError:
+    TestingConfig = None
+    logger.debug("TestingConfig не найден")
+
+
+class Config(
+    BaseConfig,
+    DatabaseConfig,
+    APIConfig,
+    SecurityConfig,
+    FeatureConfig
+):
+    """
+    Итоговый класс конфигурации, объединяющий все секции.
+
+    Порядок наследования важен: последний класс переопределяет
+    предыдущие, если есть одинаковые атрибуты.
+
+    Этот класс содержит ВСЕ настройки приложения в одном месте.
+    """
+
+    # ===== Определение окружения =====
+    # Текущее окружение (development, production, testing)
+    FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
+
+    # Удобные флаги для проверки окружения
+    IS_DEVELOPMENT = FLASK_ENV == 'development'
+    IS_PRODUCTION = FLASK_ENV == 'production'
+    IS_TESTING = FLASK_ENV == 'testing'
+
+    @classmethod
+    def get_environment_config(cls) -> Optional[Type]:
+        """
+        Возвращает класс конфигурации для текущего окружения.
+
+        Returns:
+            Optional[Type]: Класс конфигурации или None
+        """
+        if cls.IS_DEVELOPMENT:
+            return DevelopmentConfig
+        elif cls.IS_PRODUCTION:
+            return ProductionConfig
+        elif cls.IS_TESTING:
+            return TestingConfig
+        return None
+
+    @classmethod
+    def validate_all(cls) -> bool:
+        """
+        Проверяет все обязательные настройки.
+
+        Returns:
+            bool: True если все проверки пройдены
+
+        Raises:
+            ValueError: если критическая настройка отсутствует
+        """
+        logger.info(f"🔍 Проверка конфигурации для окружения: {cls.FLASK_ENV}")
+
+        # Проверяем базу данных
+        try:
+            DatabaseConfig.validate()
+            logger.info("✅ DatabaseConfig: OK")
+        except ValueError as e:
+            logger.error(f"❌ DatabaseConfig: {e}")
+            raise
+
+        # Проверяем секретный ключ (не критично, но предупреждаем)
+        if cls.SECRET_KEY == 'your-secret-key-here-change-in-production':
+            logger.warning(
+                "⚠️ SECRET_KEY использует значение по умолчанию! "
+                "Измените его в .env для продакшна."
+            )
+
+        # Проверяем API ключи (логируем предупреждения)
+        api_status = APIConfig.validate_all()
+        for service, status in api_status.items():
+            if status:
+                logger.info(f"✅ {service} API: ключ найден")
+            else:
+                logger.info(f"ℹ️ {service} API: ключ не задан (функция отключена)")
+
+        # Проверяем флаги функций
+        feature_status = FeatureConfig.get_feature_status()
+        logger.info(f"📊 Включено профилей: {feature_status['profiles_count']}/9")
+
+        logger.info("✅ Все проверки конфигурации пройдены")
+        return True
+
+
+# ===== Создаем единый объект конфигурации =====
+# Это то, что будут импортировать другие модули
+config = Config()
+
+# Для удобства можно импортировать отдельные классы
+__all__ = [
+    'config',
+    'Config',
+    'BaseConfig',
+    'DatabaseConfig',
+    'APIConfig',
+    'SecurityConfig',
+    'FeatureConfig',
+]
+
+
+# ===== Автоматическая проверка при импорте =====
+# Это поможет сразу увидеть проблемы с конфигурацией
+if not os.environ.get('SKIP_CONFIG_VALIDATION'):
+    try:
+        config.validate_all()
+    except Exception as e:
+        logger.error(f"❌ Ошибка валидации конфигурации: {e}")
+        # Не останавливаем приложение, только логируем

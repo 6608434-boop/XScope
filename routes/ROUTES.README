@@ -1,0 +1,92 @@
+# 📁 ПАПКА: routes/
+
+## 📌 НАЗНАЧЕНИЕ
+Все маршруты (эндпоинты) приложения. Разделены по функциональным модулям.
+
+## 📋 СТРУКТУРА
+
+    📁 routes/
+    │
+    ├── 📄 __init__.py           # Регистрация всех маршрутов
+    │
+    ├── 📁 main/                 # Публичные страницы
+    │   ├── 📄 __init__.py
+    │   └── 📄 index.py           # GET /
+    │
+    ├── 📁 auth/                  # Авторизация
+    │   ├── 📄 __init__.py
+    │   ├── 📄 login.py            # GET/POST /auth/login
+    │   ├── 📄 logout.py           # GET /auth/logout
+    │   ├── 📄 register.py         # POST /auth/register
+    │   └── 📄 profile.py          # GET /auth/profile
+    │
+    ├── 📁 chat/                  # Управление чатами
+    │   ├── 📄 __init__.py
+    │   ├── 📄 list.py             # GET /chat/list (API)
+    │   ├── 📄 new.py              # POST /chat/new
+    │   ├── 📄 rename.py           # POST /chat/rename
+    │   ├── 📄 delete.py           # POST /chat/delete/<id>
+    │   └── 📄 load.py             # GET /chat/load/<id>
+    │
+    ├── 📁 api/                    # JSON API
+    │   ├── 📄 __init__.py
+    │   └── 📄 profiles.py         # GET /api/bot-profiles
+    │
+    └── 📁 analyze/                # AI обработка
+        ├── 📄 __init__.py
+        └── 📄 message.py           # POST /analyze/message
+
+## 🎯 КАК ИСПОЛЬЗОВАТЬ
+
+### Регистрация в приложении:
+from routes import register_blueprints
+register_blueprints(app)
+
+## 📦 ОПИСАНИЕ МАРШРУТОВ
+
+### Main (главная страница)
+| Метод | URL | Описание | Файл |
+|-------|-----|----------|------|
+| GET | `/` | Главная страница с чатами | `main/index.py` |
+
+### Auth (авторизация)
+| Метод | URL | Описание | Файл |
+|-------|-----|----------|------|
+| GET/POST | `/auth/login` | Вход | `auth/login.py` |
+| GET | `/auth/logout` | Выход | `auth/logout.py` |
+| POST | `/auth/register` | Регистрация | `auth/register.py` |
+| GET | `/auth/profile` | Профиль | `auth/profile.py` |
+
+### Chat (управление чатами)
+| Метод | URL | Описание | Файл |
+|-------|-----|----------|------|
+| GET | `/chat/list` | Список чатов (API) | `chat/list.py` |
+| POST | `/chat/new` | Создать чат | `chat/new.py` |
+| POST | `/chat/rename` | Переименовать | `chat/rename.py` |
+| POST | `/chat/delete/<id>` | Удалить | `chat/delete.py` |
+| GET | `/chat/load/<id>` | Загрузить чат | `chat/load.py` |
+
+### API (JSON)
+| Метод | URL | Описание | Файл |
+|-------|-----|----------|------|
+| GET | `/api/bot-profiles` | Список профилей | `api/profiles.py` |
+
+### Analyze (AI)
+| Метод | URL | Описание | Файл |
+|-------|-----|----------|------|
+| POST | `/analyze/message` | Отправить сообщение | `analyze/message.py` |
+
+## 🔐 ЗАЩИТА
+- Все маршруты, кроме `/auth/login` и `/auth/register`, требуют авторизации
+- Декоратор `@login_required` проверяет наличие пользователя в сессии
+- Декоратор `@chat_owner` проверяет владельца чата
+
+## 📦 ЗАВИСИМОСТИ
+- `services/` — бизнес-логика
+- `utils/decorators/` — декораторы для проверки прав
+
+## 👨‍💻 АВТОР
+Oliver Vance — при изменении маршрутов обновить документацию!
+
+## 📝 ИСТОРИЯ ИЗМЕНЕНИЙ
+2026-02-15 - Oliver Vance - Создание документации

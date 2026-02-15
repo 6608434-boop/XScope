@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/environments/development.py
+НАЗНАЧЕНИЕ: Настройки для режима разработки
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл содержит настройки, специфичные для разработки.
+    Переопределяет некоторые параметры из базовых классов
+    для удобства локальной разработки.
+
+ИСПОЛЬЗОВАНИЕ:
+    Автоматически загружается через config/__init__.py
+    при FLASK_ENV=development
+
+ОСОБЕННОСТИ:
+    - Включает DEBUG режим
+    - Использует SQLite для простоты
+    - Отключает HTTPS для сессий
+    - Включает все функции для тестирования
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+from config.base import BaseConfig
+from config.database import DatabaseConfig
+from config.security import SecurityConfig
+from config.features import FeatureConfig
+
+
+class DevelopmentConfig(
+    BaseConfig,
+    DatabaseConfig,
+    SecurityConfig,
+    FeatureConfig
+):
+    """
+    Настройки для режима разработки.
+    """
+
+    # ===== Режимы работы =====
+    # В разработке всегда включен DEBUG
+    DEBUG = True
+    TESTING = False
+
+    # ===== База данных =====
+    # Для разработки можно использовать SQLite
+    @property
+    def DATABASE_URL(self):
+        """Использует SQLite для простоты, если не указано иное"""
+        env_url = os.environ.get('DATABASE_URL')
+        if env_url:
+            return env_url
+        # SQLite файл в корне проекта
+        return 'sqlite:///xscope_dev.db'
+
+    # Увеличиваем таймауты для отладки
+    DB_CONNECT_TIMEOUT = 30
+    DB_QUERY_TIMEOUT = 60
+
+    # ===== Безопасность =====
+    # В разработке отключаем HTTPS для сессий
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # Отключаем HSTS в разработке
+    HSTS_ENABLED = False
+
+    # ===== CORS =====
+    # В разработке разрешаем все источники
+    CORS_ORIGINS = ['*']
+
+    # ===== Rate Limiting =====
+    # В разработке можно отключить для удобства
+    RATE_LIMIT_ENABLED = os.environ.get(
+        'DEV_RATE_LIMIT_ENABLED',
+        'False'  # по умолчанию отключено в разработке
+    ).lower() == 'true'
+
+    # ===== Флаги функций =====
+    # В разработке включаем всё для тестирования
+    ENABLE_2FA = True
+    ENABLE_TELEGRAM = True
+    ENABLE_GOOGLE_SHEETS = True
+    ENABLE_DEEPSEEK = True
+    ENABLE_STREAMING = True
+
+    # Все профили включены
+    ENABLE_OLIVER = True
+    ENABLE_ISAAC = True
+    ENABLE_ARSENIY = True
+    ENABLE_VICTOR = True
+    ENABLE_MARK = True
+    ENABLE_TEO = True
+    ENABLE_ADAM = True
+    ENABLE_STEVE = True
+    ENABLE_WILL = True
+
+    # ===== Логирование =====
+    # В разработке подробные логи
+    LOG_LEVEL = 'DEBUG'
+
+    # ===== Отладочные функции =====
+    DEBUG_FEATURES = True
+    EXPERIMENTAL_CHAT_UI = True  # можно тестировать новые интерфейсы

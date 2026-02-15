@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/chat/__init__.py
+НАЗНАЧЕНИЕ: Экспорт сервисов для работы с чатами
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все сервисы для чатов через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.chat import get_user_chats, create_chat
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from services.chat.get_list import get_user_chats
+from services.chat.create import create_chat
+from services.chat.rename import rename_chat
+from services.chat.delete import delete_chat
+from services.chat.load import load_chat
+from services.chat.validate_owner import validate_chat_owner
+
+__all__ = [
+    'get_user_chats',
+    'create_chat',
+    'rename_chat',
+    'delete_chat',
+    'load_chat',
+    'validate_chat_owner',
+]

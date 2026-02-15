@@ -1,0 +1,292 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: models/chat.py
+НАЗНАЧЕНИЕ: Модель чата
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Работа с таблицей chats:
+    - Создание чата
+    - Получение списка чатов пользователя
+    - Переименование
+    - Удаление
+    - Проверка владельца
+
+ИСПОЛЬЗОВАНИЕ:
+    from models.chat import Chat
+
+    # Создать чат
+    chat_id = Chat.create(user_id=1, title="Мой чат")
+
+    # Получить все чаты пользователя
+    chats = Chat.get_user_chats(1)
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+from utils.db import get_db_connection, get_dict_cursor, execute_insert, execute_dict_one
+from models.base import BaseModel
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class Chat(BaseModel):
+    """
+    Модель чата.
+
+    Таблица: chats
+    Поля:
+        id: SERIAL PRIMARY KEY
+        user_id: INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+        title: VARCHAR(200) NOT NULL
+        bot_profile_id: INTEGER REFERENCES bot_profiles(id)
+        created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    """
+
+    table_name = 'chats'
+
+    @classmethod
+    def create(cls, user_id: int, title: str, bot_profile_id: Optional[int] = None) -> int:
+        """
+        Создаёт новый чат.
+
+        Args:
+            user_id: ID владельца чата
+            title: Название чата
+            bot_profile_id: ID профиля бота (опционально)
+
+        Returns:
+            int: ID созданного чата
+        """
+        conn = get_db_connection()
+        try:
+            chat_id = execute_insert(conn, 'chats', {
+                'user_id': user_id,
+                'title': title,
+                'bot_profile_id': bot_profile_id
+            })
+
+            conn.commit()
+            logger.info(f"✅ Создан чат {chat_id} для пользователя {user_id}")
+            return chat_id
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"❌ Ошибка создания чата: {e}")
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_user_chats(cls, user_id: int) -> List[Dict[str, Any]]:
+        """
+        Получает все чаты пользователя с информацией о последнем сообщении.
+
+        Args:
+            user_id: ID пользователя
+
+        Returns:
+            List[Dict]: Список чатов
+        """
+        conn = get_db_connection()
+        cur = get_dict_cursor(conn)
+
+        try:
+            query = """
+                SELECT
+                    c.id,
+                    c.title,
+                    COALESCE(bp.avatar, '💬') as avatar,
+                    COALESCE(
+                        (SELECT created_at FROM messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1),
+                        c.created_at
+                    ) as last_message_at
+                FROM chats c
+                LEFT JOIN bot_profiles bp ON c.bot_profile_id = bp.id
+                WHERE c.user_id = %s
+                ORDER BY c.updated_at DESC
+            """
+            cur.execute(query, (user_id,))
+            chats = cur.fetchall()
+
+            logger.debug(f"Загружено {len(chats)} чатов для пользователя {user_id}")
+            return chats
+
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def rename(cls, chat_id: int, new_title: str) -> bool:
+        """
+        Переименовывает чат.
+
+        Args:
+            chat_id: ID чата
+            new_title: Новое название
+
+        Returns:
+            bool: True если успешно
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE chats
+                SET title = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (new_title, chat_id))
+
+            updated = cur.rowcount > 0
+            conn.commit()
+
+            if updated:
+                logger.info(f"✅ Чат {chat_id} переименован в '{new_title}'")
+            else:
+                logger.warning(f"⚠️ Чат {chat_id} не найден")
+
+            return updated
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"❌ Ошибка переименования чата {chat_id}: {e}")
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def delete(cls, chat_id: int) -> bool:
+        """
+        Удаляет чат и все его сообщения.
+
+        Args:
+            chat_id: ID чата
+
+        Returns:
+            bool: True если успешно
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        try:
+            # Сначала удаляем сообщения (каскадно, но для надёжности)
+            cur.execute("DELETE FROM messages WHERE chat_id = %s", (chat_id,))
+            deleted_messages = cur.rowcount
+
+            # Затем удаляем сам чат
+            cur.execute("DELETE FROM chats WHERE id = %s", (chat_id,))
+            deleted = cur.rowcount > 0
+
+            conn.commit()
+
+            if deleted:
+                logger.info(f"✅ Удалён чат {chat_id} и {deleted_messages} сообщений")
+            else:
+                logger.warning(f"⚠️ Чат {chat_id} не найден")
+
+            return deleted
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"❌ Ошибка удаления чата {chat_id}: {e}")
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def get_by_id(cls, chat_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Получает чат по ID с информацией о профиле.
+
+        Args:
+            chat_id: ID чата
+
+        Returns:
+            Optional[Dict]: Данные чата
+        """
+        conn = get_db_connection()
+        cur = get_dict_cursor(conn)
+
+        try:
+            query = """
+                SELECT
+                    c.*,
+                    bp.system_prompt,
+                    bp.bot_name,
+                    bp.avatar,
+                    bp.description as profile_description
+                FROM chats c
+                LEFT JOIN bot_profiles bp ON c.bot_profile_id = bp.id
+                WHERE c.id = %s
+            """
+            cur.execute(query, (chat_id,))
+            chat = cur.fetchone()
+
+            logger.debug(f"Загрузка чата {chat_id}: {'найден' if chat else 'не найден'}")
+            return chat
+
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def is_owner(cls, chat_id: int, user_id: int) -> bool:
+        """
+        Проверяет, является ли пользователь владельцем чата.
+
+        Args:
+            chat_id: ID чата
+            user_id: ID пользователя
+
+        Returns:
+            bool: True если пользователь - владелец
+        """
+        chat = cls.get_by_id(chat_id)
+        return chat is not None and chat['user_id'] == user_id
+
+    @classmethod
+    def update_timestamp(cls, chat_id: int) -> bool:
+        """
+        Обновляет временную метку чата (при новом сообщении).
+
+        Args:
+            chat_id: ID чата
+
+        Returns:
+            bool: True если успешно
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE chats
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (chat_id,))
+
+            conn.commit()
+            return True
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"❌ Ошибка обновления timestamp чата {chat_id}: {e}")
+            return False
+        finally:
+            cur.close()
+            conn.close()

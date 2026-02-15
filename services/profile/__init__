@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: services/profile/__init__.py
+НАЗНАЧЕНИЕ: Экспорт сервисов для работы с профилями ботов
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Делает доступными все сервисы для профилей через один импорт.
+
+ИСПОЛЬЗОВАНИЕ:
+    from services.profile import get_all_profiles, get_profile_by_id
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from services.profile.get_all import get_all_profiles, get_all_profiles_for_api
+from services.profile.get_by_id import get_profile_by_id, get_profile_with_prompt
+
+__all__ = [
+    'get_all_profiles',
+    'get_all_profiles_for_api',
+    'get_profile_by_id',
+    'get_profile_with_prompt',
+]

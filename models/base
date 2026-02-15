@@ -1,0 +1,170 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: models/base.py
+НАЗНАЧЕНИЕ: Базовый класс для всех моделей
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот класс содержит общие методы для всех моделей:
+    - get_by_id - получение записи по ID
+    - get_all - получение всех записей
+    - delete - удаление записи
+    - exists - проверка существования
+
+ИСПОЛЬЗОВАНИЕ:
+    from models.base import BaseModel
+
+    class User(BaseModel):
+        table_name = 'users'
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+from typing import Optional, Dict, Any, List
+import logging
+
+from utils.db import get_db_connection, get_dict_cursor, execute_dict_one
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+class BaseModel:
+    """
+    Базовый класс для всех моделей.
+
+    Атрибуты класса (должны быть переопределены в дочерних классах):
+        table_name (str): Имя таблицы в БД
+    """
+
+    table_name = None  # Должен быть переопределён
+
+    @classmethod
+    def get_by_id(cls, record_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Получает запись по ID.
+
+        Args:
+            record_id: ID записи
+
+        Returns:
+            Optional[Dict]: Словарь с данными или None
+        """
+        if not cls.table_name:
+            raise NotImplementedError("table_name must be defined")
+
+        conn = get_db_connection()
+        try:
+            query = f"SELECT * FROM {cls.table_name} WHERE id = %s"
+            result = execute_dict_one(conn, query, (record_id,))
+            logger.debug(f"get_by_id({record_id}) для {cls.table_name}: {'найдено' if result else 'не найдено'}")
+            return result
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_all(cls, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Получает все записи из таблицы.
+
+        Args:
+            limit: Максимальное количество записей
+            offset: Смещение для пагинации
+
+        Returns:
+            List[Dict]: Список записей
+        """
+        if not cls.table_name:
+            raise NotImplementedError("table_name must be defined")
+
+        conn = get_db_connection()
+        cur = get_dict_cursor(conn)
+
+        try:
+            query = f"SELECT * FROM {cls.table_name} ORDER BY id LIMIT %s OFFSET %s"
+            cur.execute(query, (limit, offset))
+            results = cur.fetchall()
+            logger.debug(f"get_all для {cls.table_name}: {len(results)} записей")
+            return results
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def delete(cls, record_id: int) -> bool:
+        """
+        Удаляет запись по ID.
+
+        Args:
+            record_id: ID записи
+
+        Returns:
+            bool: True если удалено, иначе False
+        """
+        if not cls.table_name:
+            raise NotImplementedError("table_name must be defined")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        try:
+            query = f"DELETE FROM {cls.table_name} WHERE id = %s RETURNING id"
+            cur.execute(query, (record_id,))
+            deleted = cur.fetchone() is not None
+            conn.commit()
+
+            if deleted:
+                logger.debug(f"Удалена запись {record_id} из {cls.table_name}")
+            else:
+                logger.debug(f"Запись {record_id} не найдена в {cls.table_name}")
+
+            return deleted
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Ошибка удаления из {cls.table_name}: {e}")
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    @classmethod
+    def exists(cls, record_id: int) -> bool:
+        """
+        Проверяет, существует ли запись с таким ID.
+
+        Args:
+            record_id: ID записи
+
+        Returns:
+            bool: True если существует
+        """
+        return cls.get_by_id(record_id) is not None
+
+    @classmethod
+    def count(cls) -> int:
+        """
+        Возвращает общее количество записей в таблице.
+
+        Returns:
+            int: Количество записей
+        """
+        if not cls.table_name:
+            raise NotImplementedError("table_name must be defined")
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        try:
+            query = f"SELECT COUNT(*) FROM {cls.table_name}"
+            cur.execute(query)
+            count = cur.fetchone()[0]
+            return count
+        finally:
+            cur.close()
+            conn.close()

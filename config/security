@@ -1,0 +1,264 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+================================================================================
+ФАЙЛ: config/security.py
+НАЗНАЧЕНИЕ: Настройки безопасности приложения
+АВТОР: Oliver Vance
+ДАТА: 2026-02-14
+
+ОПИСАНИЕ:
+    Этот файл содержит все настройки, связанные с безопасностью:
+    - Секретные ключи для сессий
+    - Настройки CORS (Cross-Origin Resource Sharing)
+    - Rate limiting (защита от брутфорса)
+    - Параметры сессий (куки, время жизни)
+    - 2FA настройки
+
+ИСПОЛЬЗОВАНИЕ:
+    from config.security import SecurityConfig
+    app.secret_key = SecurityConfig.SECRET_KEY
+    app.config.update(SecurityConfig.get_session_config())
+
+ПАРАМЕТРЫ:
+    SECRET_KEY - главный секретный ключ приложения
+    SESSION_COOKIE_NAME - имя cookie для сессии
+    SESSION_COOKIE_HTTPONLY - запрет доступа из JS
+    SESSION_COOKIE_SECURE - только по HTTPS
+    PERMANENT_SESSION_LIFETIME - время жизни сессии
+    CORS_ORIGINS - разрешенные домены
+    RATE_LIMIT_* - настройки ограничения запросов
+    TWO_FACTOR_* - настройки двухфакторной аутентификации
+
+ИСТОРИЯ ИЗМЕНЕНИЙ:
+    2026-02-14 - Oliver - создание
+================================================================================
+"""
+
+import os
+import secrets
+from typing import List, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SecurityConfig:
+    """
+    Настройки безопасности приложения.
+
+    Все чувствительные параметры загружаются из .env.
+    Если SECRET_KEY не задан, генерируется случайный
+    (но сессии сбросятся при перезапуске!).
+    """
+
+    # ===== Секретный ключ =====
+    # Используется для подписи сессий и токенов
+    # Должен быть длинным и случайным!
+    _secret_key = os.environ.get('SECRET_KEY')
+
+    if not _secret_key:
+        # Если ключ не задан в .env, генерируем временный
+        _secret_key = secrets.token_hex(32)
+        logger.warning(
+            "⚠️ SECRET_KEY не задан в .env! "
+            "Сгенерирован временный ключ. "
+            "Сессии сбросятся при перезапуске!"
+        )
+
+    SECRET_KEY = _secret_key
+
+    # ===== Настройки сессий =====
+    # Имя cookie для сессии
+    SESSION_COOKIE_NAME = os.environ.get(
+        'SESSION_COOKIE_NAME',
+        'xscope_session'
+    )
+
+    # Запрещаем доступ к cookie из JavaScript (защита от XSS)
+    SESSION_COOKIE_HTTPONLY = True
+
+    # Cookie только по HTTPS (в продакшне должно быть True)
+    SESSION_COOKIE_SECURE = os.environ.get(
+        'SESSION_COOKIE_SECURE',
+        'False'  # для разработки False, для продакшна True
+    ).lower() == 'true'
+
+    # Защита от CSRF атак
+    SESSION_COOKIE_SAMESITE = os.environ.get(
+        'SESSION_COOKIE_SAMESITE',
+        'Lax'  # Возможные значения: Strict, Lax, None
+    )
+
+    # Время жизни сессии (7 дней по умолчанию)
+    PERMANENT_SESSION_LIFETIME = int(
+        os.environ.get('PERMANENT_SESSION_LIFETIME', '604800')
+    )  # 604800 секунд = 7 дней
+
+    # ===== CORS настройки =====
+    # Какие домены могут обращаться к API
+    # По умолчанию разрешаем все (для разработки)
+    CORS_ORIGINS = os.environ.get(
+        'CORS_ORIGINS',
+        '*'  # В продакшне заменить на конкретные домены!
+    ).split(',')
+
+    # Разрешенные HTTP методы
+    CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+
+    # Разрешенные заголовки
+    CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization']
+
+    # Разрешить отправку куки через CORS
+    CORS_SUPPORTS_CREDENTIALS = True
+
+    # ===== Rate Limiting (защита от брутфорса) =====
+    # Включить ли ограничение запросов
+    RATE_LIMIT_ENABLED = os.environ.get(
+        'RATE_LIMIT_ENABLED',
+        'True'
+    ).lower() == 'true'
+
+    # Максимальное количество запросов
+    RATE_LIMIT_REQUESTS = int(
+        os.environ.get('RATE_LIMIT_REQUESTS', '100')
+    )
+
+    # Период времени (в секундах)
+    RATE_LIMIT_PERIOD = int(
+        os.environ.get('RATE_LIMIT_PERIOD', '60')
+    )  # 100 запросов в минуту
+
+    # Отдельные лимиты для чувствительных эндпоинтов
+    RATE_LIMIT_LOGIN_REQUESTS = int(
+        os.environ.get('RATE_LIMIT_LOGIN_REQUESTS', '5')
+    )  # 5 попыток входа
+    RATE_LIMIT_LOGIN_PERIOD = int(
+        os.environ.get('RATE_LIMIT_LOGIN_PERIOD', '300')
+    )  # за 5 минут
+
+    # ===== 2FA настройки =====
+    # Включить ли двухфакторную аутентификацию
+    TWO_FACTOR_AUTH_ENABLED = os.environ.get(
+        'TWO_FACTOR_AUTH_ENABLED',
+        'True'
+    ).lower() == 'true'
+
+    # Название приложения в Google Authenticator
+    TWO_FACTOR_ISSUER_NAME = os.environ.get(
+        'TWO_FACTOR_ISSUER_NAME',
+        'XScope'
+    )
+
+    # Длина кода 2FA (обычно 6)
+    TWO_FACTOR_DIGITS = 6
+
+    # Интервал обновления кода (в секундах)
+    TWO_FACTOR_INTERVAL = 30
+
+    # ===== Заголовки безопасности =====
+    # HSTS (HTTP Strict Transport Security)
+    # Заставляет браузер всегда использовать HTTPS
+    HSTS_ENABLED = os.environ.get('HSTS_ENABLED', 'False').lower() == 'true'
+    HSTS_MAX_AGE = 31536000  # 1 год
+    HSTS_INCLUDE_SUBDOMAINS = True
+
+    # Защита от MIME-type sniffing
+    X_CONTENT_TYPE_OPTIONS = 'nosniff'
+
+    # Защита от clickjacking
+    X_FRAME_OPTIONS = 'DENY'
+
+    # ===== Парольная политика =====
+    # Минимальная длина пароля
+    PASSWORD_MIN_LENGTH = int(os.environ.get('PASSWORD_MIN_LENGTH', '8'))
+
+    # Требовать ли цифры в пароле
+    PASSWORD_REQUIRE_DIGITS = os.environ.get(
+        'PASSWORD_REQUIRE_DIGITS',
+        'True'
+    ).lower() == 'true'
+
+    # Требовать ли спецсимволы
+    PASSWORD_REQUIRE_SPECIAL = os.environ.get(
+        'PASSWORD_REQUIRE_SPECIAL',
+        'False'
+    ).lower() == 'true'
+
+    @classmethod
+    def get_session_config(cls) -> Dict[str, Any]:
+        """
+        Возвращает словарь с настройками сессии для Flask.
+
+        Returns:
+            Dict[str, Any]: Настройки для app.config.update()
+        """
+        return {
+            'SECRET_KEY': cls.SECRET_KEY,
+            'SESSION_COOKIE_NAME': cls.SESSION_COOKIE_NAME,
+            'SESSION_COOKIE_HTTPONLY': cls.SESSION_COOKIE_HTTPONLY,
+            'SESSION_COOKIE_SECURE': cls.SESSION_COOKIE_SECURE,
+            'SESSION_COOKIE_SAMESITE': cls.SESSION_COOKIE_SAMESITE,
+            'PERMANENT_SESSION_LIFETIME': cls.PERMANENT_SESSION_LIFETIME,
+        }
+
+    @classmethod
+    def get_cors_config(cls) -> Dict[str, Any]:
+        """
+        Возвращает настройки CORS для Flask-CORS.
+
+        Returns:
+            Dict[str, Any]: Настройки для CORS
+        """
+        return {
+            'origins': cls.CORS_ORIGINS,
+            'methods': cls.CORS_METHODS,
+            'allow_headers': cls.CORS_ALLOW_HEADERS,
+            'supports_credentials': cls.CORS_SUPPORTS_CREDENTIALS,
+        }
+
+    @classmethod
+    def get_security_headers(cls) -> Dict[str, str]:
+        """
+        Возвращает заголовки безопасности для ответов.
+
+        Returns:
+            Dict[str, str]: Заголовки для добавления в каждый ответ
+        """
+        headers = {
+            'X-Content-Type-Options': cls.X_CONTENT_TYPE_OPTIONS,
+            'X-Frame-Options': cls.X_FRAME_OPTIONS,
+        }
+
+        if cls.HSTS_ENABLED:
+            hsts_value = f"max-age={cls.HSTS_MAX_AGE}"
+            if cls.HSTS_INCLUDE_SUBDOMAINS:
+                hsts_value += "; includeSubDomains"
+            headers['Strict-Transport-Security'] = hsts_value
+
+        return headers
+
+    @classmethod
+    def validate_password(cls, password: str) -> tuple:
+        """
+        Проверяет пароль на соответствие политике.
+
+        Args:
+            password (str): Пароль для проверки
+
+        Returns:
+            tuple: (is_valid, error_message)
+        """
+        if len(password) < cls.PASSWORD_MIN_LENGTH:
+            return False, f"Пароль должен быть минимум {cls.PASSWORD_MIN_LENGTH} символов"
+
+        if cls.PASSWORD_REQUIRE_DIGITS and not any(c.isdigit() for c in password):
+            return False, "Пароль должен содержать хотя бы одну цифру"
+
+        if cls.PASSWORD_REQUIRE_SPECIAL:
+            special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+            if not any(c in special_chars for c in password):
+                return False, "Пароль должен содержать хотя бы один спецсимвол"
+
+        return True, "Пароль корректен"

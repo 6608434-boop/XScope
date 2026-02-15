@@ -1,0 +1,50 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+temp_uploads/
+
+# Backups
+backups/
+
+# Temporary test files
+temp_tests/__pycache__/
+temp_tests/*.pyc
+
+# Database
+*.db
+*.sqlite3
+*.sqlite3-journal
+
+# Project specific
+instance/
+.DS_Store
